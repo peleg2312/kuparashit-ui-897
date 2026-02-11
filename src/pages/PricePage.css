@@ -1,0 +1,127 @@
+.price-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.price-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all var(--transition-fast);
+}
+
+.price-tab:hover {
+    background: var(--bg-card-hover);
+}
+
+.price-tab--active {
+    background: var(--bg-card-hover);
+    border-width: 2px;
+}
+
+.price-tab__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.price-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 900px;
+}
+
+.price-input-card {
+    padding: 28px;
+}
+
+.price-input-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.price-input-header h3 {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.price-input-header p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.price-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.price-calc-btn {
+    margin-top: 8px;
+    width: 100%;
+    justify-content: center;
+}
+
+/* Result */
+.price-result-card {
+    padding: 28px;
+    align-self: start;
+}
+
+.price-result-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid;
+}
+
+.price-result-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.price-result-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.price-result-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.price-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.price-detail-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.price-detail-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
