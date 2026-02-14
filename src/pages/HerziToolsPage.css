@@ -49,7 +49,7 @@
 
 .herzi-box {
     padding: 20px;
-    min-height: 220px;
+    min-height: 190px;
     display: flex;
     gap: 14px;
 }
@@ -83,6 +83,7 @@
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
+    margin-bottom: 8px;
 }
 
 .small-badge {
@@ -90,9 +91,9 @@
 }
 
 .herzi-box__input-area {
-    margin-top: auto;
+    margin-top: 10px;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 8px;
 }
 
@@ -104,6 +105,14 @@
     background: var(--bg-input);
     color: var(--text-primary);
     padding: 0 12px;
+}
+
+.herzi-input--textarea {
+    min-height: 78px;
+    padding: 9px 12px;
+    resize: none;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.45;
 }
 
 .herzi-input:focus {
@@ -119,10 +128,15 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    align-self: flex-end;
 }
 
 .herzi-result-modal {
     width: min(900px, 100%);
+}
+
+.herzi-result-modal--multi {
+    width: min(960px, 100%);
 }
 
 .herzi-result-header {
@@ -130,6 +144,12 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+}
+
+.herzi-result-subtitle {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
 }
 
 .herzi-result-body {
@@ -148,8 +168,220 @@
     word-break: break-word;
 }
 
+.herzi-result-list-intro {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.herzi-simple-list-view {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-input), var(--bg-secondary) 16%);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+}
+
+.herzi-simple-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.herzi-copy-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.herzi-simple-list-results {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-card);
+    max-height: 52vh;
+    overflow: auto;
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+}
+
+.herzi-simple-list-row {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--bg-input);
+    padding: 8px 10px;
+}
+
+.herzi-simple-list-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.84rem;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.herzi-result-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.herzi-result-layout {
+    display: grid;
+    grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+    gap: 14px;
+    min-height: 420px;
+}
+
+.herzi-result-side {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-input), var(--bg-secondary) 20%);
+    padding: 12px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 10px;
+}
+
+.herzi-result-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    padding: 0 10px;
+    min-height: 36px;
+}
+
+.herzi-result-search-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.herzi-result-search {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.84rem;
+    outline: none;
+    min-height: 34px;
+}
+
+.herzi-result-search::placeholder {
+    color: var(--text-muted);
+}
+
+.herzi-result-items {
+    max-height: 100%;
+    overflow: auto;
+    padding-right: 4px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+}
+
+.herzi-result-item-btn {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+    color: var(--text-primary);
+    padding: 9px 11px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.herzi-result-item-btn:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 28%);
+    transform: translateY(-1px);
+}
+
+.herzi-result-item-btn--active {
+    border-color: color-mix(in srgb, var(--accent), var(--border) 30%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 24%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 70%);
+}
+
+.herzi-result-item-name {
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.herzi-result-empty {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    padding: 8px 2px;
+}
+
+.herzi-result-detail-view {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+}
+
+.herzi-result-selected-label {
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 70%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 20%);
+}
+
+.herzi-result-detail-view .herzi-result-body {
+    max-height: none;
+    min-height: 0;
+}
+
 @media (max-width: 960px) {
     .herzi-grid {
         grid-template-columns: 1fr;
+    }
+
+    .herzi-box__input-area {
+        flex-direction: column;
+    }
+
+    .herzi-submit-btn {
+        width: 100%;
+        height: 44px;
+    }
+
+    .herzi-result-modal--multi {
+        width: 100%;
+    }
+
+    .herzi-result-layout {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    .herzi-result-side {
+        grid-template-rows: auto auto auto;
+    }
+
+    .herzi-result-items {
+        max-height: 200px;
+    }
+
+    .herzi-result-detail-view .herzi-result-body {
+        max-height: 52vh;
     }
 }

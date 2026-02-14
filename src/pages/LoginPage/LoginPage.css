@@ -1,17 +1,19 @@
 .login-container {
-    height: 100%;
+    min-height: 100dvh;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 20px;
+    overflow: auto;
     background: radial-gradient(circle at top right, var(--accent-subtle), transparent 40%),
         radial-gradient(circle at bottom left, var(--bg-card), var(--bg-primary));
 }
 
 .login-card {
     width: 100%;
-    max-width: 460px;
-    padding: 48px;
+    max-width: min(460px, 100%);
+    padding: clamp(20px, 4.5vw, 48px);
     animation: scaleIn 0.5s var(--transition-bounce);
 }
 
@@ -116,4 +118,27 @@
 
 .link:hover {
     text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .login-container {
+        align-items: flex-start;
+        padding: 14px;
+    }
+
+    .login-header {
+        margin-bottom: 20px;
+    }
+
+    .login-title {
+        font-size: 1.65rem;
+    }
+
+    .login-subtitle {
+        font-size: 0.88rem;
+    }
+
+    .login-btn {
+        height: 46px;
+    }
 }

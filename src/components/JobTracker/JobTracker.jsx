@@ -1,62 +1,57 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HiX, HiCheckCircle, HiXCircle, HiClock, HiRefresh } from 'react-icons/hi';
+import { mainApi } from '../../api';
 import './JobTracker.css';
 
 export default function JobTracker({ job, onClose }) {
-    const [steps, setSteps] = useState([]);
-    const [currentStep, setCurrentStep] = useState(0);
-    const [completed, setCompleted] = useState(false);
-    const [failed, setFailed] = useState(false);
-    const [error, setError] = useState(null);
+    const [statusByJob, setStatusByJob] = useState({});
+    const [pollErrorByJob, setPollErrorByJob] = useState({});
+    const pollTimerRef = useRef(null);
 
     useEffect(() => {
-        if (!job) return;
-        setSteps(job.steps.map(s => ({ ...s, status: 'pending' })));
-        setCurrentStep(0);
-        setCompleted(false);
-        setFailed(false);
-        setError(null);
-    }, [job]);
+        if (!job?.jobId) return undefined;
 
-    useEffect(() => {
-        if (!job || completed || failed || steps.length === 0) return;
-        if (currentStep >= steps.length) {
-            setCompleted(true);
-            return;
-        }
+        let cancelled = false;
 
-        // Simulate step execution
-        const timer1 = setTimeout(() => {
-            setSteps(prev => prev.map((s, i) =>
-                i === currentStep ? { ...s, status: 'running' } : s
-            ));
-        }, 300);
+        const poll = async () => {
+            try {
+                const response = await mainApi.getJobStatus(job.jobId);
+                if (cancelled) return;
 
-        const step = job.steps[currentStep];
-        const timer2 = setTimeout(() => {
-            // 10% chance of failure on last step for demo variety
-            const shouldFail = currentStep === steps.length - 1 && Math.random() < 0.1;
-            if (shouldFail) {
-                setSteps(prev => prev.map((s, i) =>
-                    i === currentStep ? { ...s, status: 'failed' } : s
-                ));
-                setFailed(true);
-                setError('Connection timeout: Unable to verify operation result. Please check manually.');
-            } else {
-                setSteps(prev => prev.map((s, i) =>
-                    i === currentStep ? { ...s, status: 'success' } : s
-                ));
-                setCurrentStep(c => c + 1);
+                setStatusByJob((prev) => ({ ...prev, [job.jobId]: response }));
+                setPollErrorByJob((prev) => ({ ...prev, [job.jobId]: '' }));
+
+                if (response.finished || response.status === 'success' || response.status === 'failed') return;
+            } catch (error) {
+                if (cancelled) return;
+                setPollErrorByJob((prev) => ({ ...prev, [job.jobId]: error?.message || 'Failed to fetch job status' }));
             }
-        }, step.duration);
 
-        return () => { clearTimeout(timer1); clearTimeout(timer2); };
-    }, [currentStep, job, completed, failed, steps.length]);
+            if (!cancelled) {
+                pollTimerRef.current = window.setTimeout(poll, 3000);
+            }
+        };
+
+        poll();
+
+        return () => {
+            cancelled = true;
+            if (pollTimerRef.current) window.clearTimeout(pollTimerRef.current);
+        };
+    }, [job?.jobId]);
 
     if (!job) return null;
 
-    const progress = Math.round((steps.filter((s) => s.status === 'success').length / (steps.length || 1)) * 100);
+    const statusData = statusByJob[job.jobId] || null;
+    const pollError = pollErrorByJob[job.jobId] || '';
+    const steps = statusData?.steps || [];
+    const completed = statusData?.status === 'success';
+    const failed = statusData?.status === 'failed';
+    const progress = typeof statusData?.progress === 'number'
+        ? statusData.progress
+        : (steps.length
+            ? Math.round((steps.filter((step) => step.status === 'success').length / steps.length) * 100)
+            : 0);
 
     const getStepIcon = (status) => {
         switch (status) {
@@ -69,7 +64,7 @@ export default function JobTracker({ job, onClose }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content job-tracker" onClick={e => e.stopPropagation()}>
+            <div className="modal-content job-tracker" onClick={(event) => event.stopPropagation()}>
                 <div className="modal-header">
                     <div>
                         <h2 className="modal-title">Job Execution</h2>
@@ -86,18 +81,55 @@ export default function JobTracker({ job, onClose }) {
                 </div>
 
                 <div className="job-tracker__steps">
-                    {steps.map((step, i) => (
-                        <div key={i} className={`job-step job-step--${step.status}`}>
-                            <div className="job-step__connector">
-                                {getStepIcon(step.status)}
-                                {i < steps.length - 1 && <div className={`job-step__line ${steps[i + 1]?.status !== 'pending' ? 'job-step__line--filled' : ''}`} />}
+                    {!statusData ? (
+                        <div className="job-tracker__loading" aria-live="polite">
+                            <div className="job-loader-orbit" aria-hidden="true">
+                                <span className="job-loader-orbit__ring job-loader-orbit__ring--outer" />
+                                <span className="job-loader-orbit__ring job-loader-orbit__ring--inner" />
+                                <span className="job-loader-orbit__core">
+                                    <HiRefresh size={16} className="job-tracker__loading-spinner animate-spin" />
+                                </span>
                             </div>
-                            <div className="job-step__content">
-                                <span className="job-step__name">{i + 1}. {step.name}</span>
-                                <span className="job-step__status">{step.status}</span>
+
+                            <div className="job-tracker__loading-copy">
+                                <p>Preparing execution timeline</p>
+                                <span>Waiting for first backend status response...</span>
+                            </div>
+
+                            <div className="job-tracker__loading-skeleton" aria-hidden="true">
+                                <div className="job-tracker__loading-row">
+                                    <span className="job-tracker__loading-dot" />
+                                    <span className="job-tracker__loading-line job-tracker__loading-line--w1" />
+                                </div>
+                                <div className="job-tracker__loading-row">
+                                    <span className="job-tracker__loading-dot" />
+                                    <span className="job-tracker__loading-line job-tracker__loading-line--w2" />
+                                </div>
+                                <div className="job-tracker__loading-row">
+                                    <span className="job-tracker__loading-dot" />
+                                    <span className="job-tracker__loading-line job-tracker__loading-line--w3" />
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    ) : (
+                        <>
+                            {steps.map((step, index) => (
+                                <div key={`${step.name}-${index}`} className={`job-step job-step--${step.status}`}>
+                                    <div className="job-step__connector">
+                                        {getStepIcon(step.status)}
+                                        {index < steps.length - 1 && (
+                                            <div className={`job-step__line ${steps[index + 1]?.status !== 'pending' ? 'job-step__line--filled' : ''}`} />
+                                        )}
+                                    </div>
+                                    <div className="job-step__content">
+                                        <span className="job-step__name">{index + 1}. {step.name}</span>
+                                        <span className="job-step__status">{step.status}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {!steps.length && <p className="job-tracker__empty">No step data returned from backend yet.</p>}
+                        </>
+                    )}
                 </div>
 
                 {completed && (
@@ -105,7 +137,7 @@ export default function JobTracker({ job, onClose }) {
                         <HiCheckCircle size={32} />
                         <div>
                             <h3>Operation Completed Successfully</h3>
-                            <p>All steps have been executed without errors.</p>
+                            <p>{statusData?.message || 'All backend steps finished successfully.'}</p>
                         </div>
                     </div>
                 )}
@@ -115,9 +147,13 @@ export default function JobTracker({ job, onClose }) {
                         <HiXCircle size={32} />
                         <div>
                             <h3>Operation Failed</h3>
-                            <p>{error}</p>
+                            <p>{statusData?.error || 'Backend reported a failure while executing the job.'}</p>
                         </div>
                     </div>
+                )}
+
+                {!!pollError && (
+                    <p className="job-tracker__poll-error">{pollError}</p>
                 )}
 
                 <div className="modal-footer">

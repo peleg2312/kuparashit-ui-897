@@ -4,8 +4,14 @@ import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
 import { herziApi } from '../../api';
-import { HiPlus, HiSearch, HiTrash, HiViewGrid, HiX } from 'react-icons/hi';
-import { actionButtonStyleMap, actionIconMap, buildDeleteInitialValues, resolveActionApi } from '../../utils/actionHandlers';
+import { HiPlus, HiSearch, HiX } from 'react-icons/hi';
+import {
+    actionButtonStyleMap,
+    actionIconMap,
+    buildActionInitialValues,
+    resolveActionApi,
+    resolveActionEndpoint,
+} from '../../utils/actionHandlers';
 import { formatHerziResult, herziQueryByScreen } from '../../utils/dashboardScreenHandlers';
 import './DashboardScreen.css';
 
@@ -75,20 +81,19 @@ export default function DashboardScreen({
     const openAction = (key) => {
         const action = actions[key];
         if (!action) return;
-        const initialValues = key === 'delete'
-            ? buildDeleteInitialValues(action, selectedRows)
-            : {};
+        const initialValues = buildActionInitialValues(action, selectedRows);
         setActionInitialValues(initialValues);
         setActiveAction(key);
     };
 
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];
+        const endpoint = resolveActionEndpoint(action, values);
         const payload = activeAction === 'delete'
             ? { ...values, selectedIds }
             : values;
         const api = resolveActionApi(action, apiService);
-        const result = await api.executeAction(action.endpoint, payload);
+        const result = await api.executeAction(endpoint, payload);
         setActiveAction(null);
         setActionInitialValues({});
         setJob(result);

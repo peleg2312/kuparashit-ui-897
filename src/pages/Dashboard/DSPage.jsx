@@ -6,7 +6,7 @@ const columns = [
     { key: 'name', label: 'Name', filterable: true },
     { key: 'vc', label: 'vCenter', filterable: true },
     { key: 'ds_cluster', label: 'DS Cluster', filterable: true },
-    { key: 'size', label: 'Size', filterable: true, render: formatSizeFromGb },
+    { key: 'size', label: 'Size', filterable: false, render: formatSizeFromGb },
 ];
 
 export default function DSPage() {

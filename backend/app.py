@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -439,7 +440,7 @@ class CalculatePayload(BaseModel):
 
 
 class HerziPayload(BaseModel):
-    input: str
+    input: str | list[str]
 
 
 def now_iso() -> str:
@@ -638,16 +639,220 @@ def get_vcenter_names() -> list[str]:
     return sorted(INVENTORY.keys())
 
 
-def make_job(action_label: str) -> dict[str, Any]:
-    return {
-        "jobId": f"JOB-{int(datetime.now().timestamp() * 1000)}",
+def get_vm_names_by_vc(vc: str | None = None) -> list[str]:
+    if not vc:
+        return []
+    return sorted(
+        {
+            item["name"]
+            for item in flatten_vms()
+            if item.get("vc") == vc and item.get("name")
+        }
+    )
+
+
+def get_ds_clusters_for_vc(vc: str | None = None) -> list[str]:
+    if not vc:
+        return []
+    return sorted(
+        {
+            item["ds_cluster"]
+            for item in flatten_datastores()
+            if item.get("vc") == vc and item.get("ds_cluster")
+        }
+    )
+
+
+def get_esx_clusters_for_vc(vc: str | None = None) -> list[str]:
+    if not vc:
+        return []
+    return sorted(
+        {
+            item["esx_cluster"]
+            for item in flatten_esx_hosts()
+            if item.get("vc") == vc and item.get("esx_cluster")
+        }
+    )
+
+
+def get_datastore_names_by_vc_cluster(vc: str | None = None, ds_cluster: str | None = None) -> list[str]:
+    if not vc or not ds_cluster:
+        return []
+    return sorted(
+        {
+            item["name"]
+            for item in flatten_datastores()
+            if item.get("vc") == vc and item.get("ds_cluster") == ds_cluster and item.get("name")
+        }
+    )
+
+
+def get_rdm_naas_by_vc_cluster(vc: str | None = None, esx_cluster: str | None = None) -> list[str]:
+    if not vc or not esx_cluster:
+        return []
+    return sorted(
+        {
+            item["naa"]
+            for item in flatten_rdms()
+            if item.get("vc") == vc and item.get("esx_cluster") == esx_cluster and item.get("naa")
+        }
+    )
+
+
+def get_esx_names_by_vc_cluster(vc: str | None = None, esx_cluster: str | None = None) -> list[str]:
+    if not vc or not esx_cluster:
+        return []
+    return sorted(
+        {
+            item["name"]
+            for item in flatten_esx_hosts()
+            if item.get("vc") == vc and item.get("esx_cluster") == esx_cluster and item.get("name")
+        }
+    )
+
+
+JOBS_STORE: dict[str, dict[str, Any]] = {}
+
+
+def _utc_now_ms() -> int:
+    return int(datetime.now(timezone.utc).timestamp() * 1000)
+
+
+def _build_job_step_blueprint(action_label: str) -> list[dict[str, Any]]:
+    action_key = action_label.lower()
+
+    if "/cluster/" in action_key:
+        names = [
+            "Validate parameters",
+            "Reserve cluster resources",
+            "Apply cluster configuration",
+            "Register in vCenter",
+            "Verify cluster health",
+        ]
+        durations = [1000, 1600, 2200, 1500, 1300]
+    elif any(token in action_key for token in ("/delete", "/remove")):
+        names = [
+            "Validate parameters",
+            "Check dependencies",
+            "Execute removal",
+            "Verify cleanup",
+        ]
+        durations = [1000, 1700, 2100, 1200]
+    elif any(token in action_key for token in ("/create", "/add")):
+        names = [
+            "Validate parameters",
+            "Reserve capacity",
+            "Apply configuration",
+            "Verify operation result",
+        ]
+        durations = [1000, 1500, 2300, 1300]
+    elif "/extend" in action_key:
+        names = [
+            "Validate parameters",
+            "Extend allocation",
+            "Verify new size",
+        ]
+        durations = [1000, 2200, 1300]
+    else:
+        names = [
+            "Validate request",
+            "Execute operation",
+            "Verify result",
+        ]
+        durations = [1000, 2400, 1300]
+
+    return [{"name": name, "durationMs": durations[index]} for index, name in enumerate(names)]
+
+
+def _create_job(action_label: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    job_id = f"JOB-{_utc_now_ms()}-{uuid4().hex[:6].upper()}"
+    step_blueprint = _build_job_step_blueprint(action_label)
+    fail_requested = bool((payload or {}).get("forceFail") or (payload or {}).get("simulateFail"))
+    failure_step_index = len(step_blueprint) - 1 if fail_requested else None
+
+    JOBS_STORE[job_id] = {
+        "jobId": job_id,
         "action": action_label,
-        "steps": [
-            {"name": "Validating parameters", "status": "pending", "duration": 1200},
-            {"name": "Connecting to storage", "status": "pending", "duration": 1500},
-            {"name": "Executing operation", "status": "pending", "duration": 2200},
-            {"name": "Verifying result", "status": "pending", "duration": 1000},
-        ],
+        "createdAtMs": _utc_now_ms(),
+        "firstStatusServed": False,
+        "firstStatusDelayMs": 1800,
+        "steps": step_blueprint,
+        "failureStepIndex": failure_step_index,
+        "successMessage": f"Action {action_label} completed successfully.",
+        "failureMessage": f"Action {action_label} failed during validation/verification.",
+    }
+
+    return {
+        "jobId": job_id,
+        "action": action_label,
+        "status": "queued",
+    }
+
+
+def _job_status_snapshot(job: dict[str, Any]) -> dict[str, Any]:
+    steps = job.get("steps", [])
+    if not steps:
+        return {
+            "jobId": job["jobId"],
+            "action": job["action"],
+            "status": "failed",
+            "finished": True,
+            "progress": 0,
+            "steps": [],
+            "message": "",
+            "error": "No steps defined for this job.",
+            "updatedAt": now_iso(),
+        }
+
+    elapsed_ms = max(0, _utc_now_ms() - int(job.get("createdAtMs", _utc_now_ms())))
+    remaining_ms = elapsed_ms
+    finished = False
+    failed = False
+    success_count = 0
+    failure_step_index = job.get("failureStepIndex")
+    step_states: list[dict[str, str]] = []
+
+    for index, step in enumerate(steps):
+        duration_ms = int(step.get("durationMs", 1000))
+        step_name = str(step.get("name", f"Step {index + 1}"))
+        step_status = "pending"
+
+        if not failed:
+            if remaining_ms <= 0:
+                step_status = "pending"
+            elif remaining_ms < duration_ms:
+                step_status = "running"
+                remaining_ms = 0
+            else:
+                remaining_ms -= duration_ms
+                if failure_step_index == index:
+                    step_status = "failed"
+                    failed = True
+                    finished = True
+                else:
+                    step_status = "success"
+                    success_count += 1
+
+        step_states.append({"name": step_name, "status": step_status})
+
+    if not failed and success_count == len(steps):
+        finished = True
+
+    status = "failed" if failed else ("success" if finished else "running")
+    progress = 100 if finished and not failed else int(round((success_count / len(steps)) * 100))
+    message = job.get("successMessage", "") if status == "success" else ""
+    error = job.get("failureMessage", "") if status == "failed" else ""
+
+    return {
+        "jobId": job["jobId"],
+        "action": job["action"],
+        "status": status,
+        "finished": finished,
+        "progress": progress,
+        "steps": step_states,
+        "message": message,
+        "error": error,
+        "updatedAt": now_iso(),
     }
 
 
@@ -856,9 +1061,19 @@ def vm_names() -> list[str]:
     return [item["name"] for item in flatten_vms()]
 
 
+@app.get("/vms/by-vc")
+def vm_names_by_vc(vc: str | None = None) -> list[str]:
+    return get_vm_names_by_vc(vc)
+
+
 @app.get("/datastores/names")
 def datastore_names() -> list[str]:
     return [item["name"] for item in flatten_datastores()]
+
+
+@app.get("/datastores/by-vc-cluster")
+def datastores_by_vc_cluster(vc: str | None = None, ds_cluster: str | None = None) -> list[str]:
+    return get_datastore_names_by_vc_cluster(vc, ds_cluster)
 
 
 @app.get("/rdm/names")
@@ -866,9 +1081,19 @@ def rdm_names() -> list[str]:
     return [item["naa"] for item in flatten_rdms()]
 
 
+@app.get("/rdms/by-vc-cluster")
+def rdms_by_vc_cluster(vc: str | None = None, esx_cluster: str | None = None) -> list[str]:
+    return get_rdm_naas_by_vc_cluster(vc, esx_cluster)
+
+
 @app.get("/esx/names")
 def esx_names() -> list[str]:
     return [item["name"] for item in flatten_esx_hosts()]
+
+
+@app.get("/esx/by-vc-cluster")
+def esx_by_vc_cluster(vc: str | None = None, esx_cluster: str | None = None) -> list[str]:
+    return get_esx_names_by_vc_cluster(vc, esx_cluster)
 
 
 @app.get("/volumes")
@@ -879,6 +1104,16 @@ def volumes() -> list[str]:
 @app.get("/aggregates")
 def aggregates() -> list[str]:
     return ["AGG-01", "AGG-02", "AGG-03", "AGG-04", "AGG-05"]
+
+
+@app.get("/ds-clusters/by-vc")
+def ds_clusters_by_vc(vc: str | None = None) -> list[str]:
+    return get_ds_clusters_for_vc(vc)
+
+
+@app.get("/esx-clusters/by-vc")
+def esx_clusters_by_vc(vc: str | None = None) -> list[str]:
+    return get_esx_clusters_for_vc(vc)
 
 
 @app.get("/clusters/by-vc")
@@ -900,8 +1135,20 @@ def esx_by_cluster(cluster: str | None = None) -> list[str]:
 
 
 @app.get("/jobs/status")
-def job_status(jobId: str) -> dict[str, str]:
-    return {"jobId": jobId, "status": "running"}
+def job_status(jobId: str) -> dict[str, Any]:
+    job = JOBS_STORE.get(jobId)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job {jobId} not found")
+
+    if not job.get("firstStatusServed"):
+        delay_ms = int(job.get("firstStatusDelayMs", 0))
+        elapsed_ms = max(0, _utc_now_ms() - int(job.get("createdAtMs", _utc_now_ms())))
+        wait_ms = max(0, delay_ms - elapsed_ms)
+        if wait_ms > 0:
+            time.sleep(wait_ms / 1000)
+        job["firstStatusServed"] = True
+
+    return _job_status_snapshot(job)
 
 
 @app.post("/price/calculate")
@@ -962,16 +1209,40 @@ HERZI_RESPONSES = {
     "/herzi/naa-lookup": lambda q: f"NAA: {q}\nType: VMFS\nDatastore: DS-TLV-FAST-01\nCapacity: 500 GB\nStatus: Active",
     "/herzi/naa-mapping": lambda q: f"NAA: {q}\nMapped to: DS-NYC-CAP-01\nHost: ESX-NYC-01\nLUN ID: 12",
     "/herzi/vm-naa": lambda q: f"VM: {q}\n\nNAA Devices:\n1. naa.6000A0A1B2C30001 (100 GB)\n2. naa.6000A0A1B2C30002 (200 GB)",
+    "/herzi/naa-ds-information": lambda q: (
+        f"Input: {q}\nType: Datastore/NAA\nMapped DS: DS-TLV-FAST-01\nMapped NAA: naa.6000A0A1B2C30001\nSize: 500 GB\nStatus: Active"
+    ),
+    "/herzi/esx-pwwn": lambda q: (
+        f"ESX: {q}\nPWWN-1: 10:00:00:90:fa:90:11:01\nPWWN-2: 10:00:00:90:fa:90:11:02\nPWWN-3: 10:00:00:90:fa:90:11:03"
+    ),
+    "/herzi/vm-information": lambda q: (
+        f"VM: {q}\nPower: on\nvCenter: VC-TLV-01\nHost: ESX-TLV-01\nDatastore: DS-TLV-FAST-01\nIP: 10.10.0.21"
+    ),
+    "/herzi/unused-luns": lambda q: (
+        f"vCenter: {q}\nUnused LUNs:\n1. lun_orphan_001\n2. lun_orphan_014\n3. lun_orphan_022"
+    ),
+    "/herzi/lun-volume-information": lambda q: (
+        f"Object: {q}\nType: LUN/Volume\nArray: AFF-A400\nSVM: svm_prod_01\nSize: 1.2 TB\nUsed: 62%\nStatus: online"
+    ),
+    "/herzi/change-pwwn": lambda q: "".join(ch for ch in str(q) if ch.isalnum()),
 }
 
 
 @app.post("/herzi/{tool_name:path}")
-def herzi_tools(tool_name: str, payload: HerziPayload) -> str:
+def herzi_tools(tool_name: str, payload: HerziPayload) -> str | list[dict[str, str]]:
     endpoint = f"/herzi/{tool_name}"
     handler = HERZI_RESPONSES.get(endpoint)
     if handler is None:
         return "No data found"
-    return handler(payload.input)
+
+    if isinstance(payload.input, list):
+        items = [str(item).strip() for item in payload.input if str(item).strip()]
+        return [{"item": item, "result": handler(item)} for item in items]
+
+    query = str(payload.input).strip()
+    if not query:
+        return "No data found"
+    return handler(query)
 
 
 @app.websocket("/ws/demo/netapp")
@@ -1220,5 +1491,4 @@ async def ws_netapp_demo(websocket: WebSocket):
 
 @app.post("/{path:path}")
 def generic_actions(path: str, payload: dict[str, Any]) -> dict[str, Any]:
-    _ = payload
-    return make_job(f"/{path}")
+    return _create_job(f"/{path}", payload)

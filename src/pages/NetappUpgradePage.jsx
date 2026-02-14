@@ -16,12 +16,29 @@ const UPGRADE_COMMAND_DICT = {
     postcheck_status: 'cluster image show-update-progress',
 };
 
-function buildInitialCommands() {
-    return Object.values(UPGRADE_COMMAND_DICT).map((command, index) => ({
-        id: `upgrade-${index + 1}`,
-        command,
-        status: 'idle',
-    }));
+const DEFAULT_CREDENTIALS = {
+    username: 'admin',
+    password: '',
+    machine: '',
+};
+
+const DEFAULT_SESSION_INFO = {
+    connected: false,
+    machine: '',
+};
+
+const INITIAL_COMMANDS = Object.values(UPGRADE_COMMAND_DICT).map((command, index) => ({
+    id: `upgrade-${index + 1}`,
+    command,
+    status: 'idle',
+}));
+
+function updateCommandStatus(commands, commandId, status) {
+    return commands.map((command) => (
+        command.id === commandId
+            ? { ...command, status }
+            : command
+    ));
 }
 
 function createNewCommand(index) {
@@ -33,25 +50,18 @@ function createNewCommand(index) {
 }
 
 export default function NetappUpgradePage() {
-    const [commands, setCommands] = useState(() => buildInitialCommands());
-    const [activeCommandId, setActiveCommandId] = useState(() => buildInitialCommands()[0]?.id || '');
+    const [commands, setCommands] = useState(() => INITIAL_COMMANDS);
+    const [activeCommandId, setActiveCommandId] = useState(() => INITIAL_COMMANDS[0]?.id || '');
     const [terminalLines, setTerminalLines] = useState([]);
-    const [credentials, setCredentials] = useState({
-        username: 'admin',
-        password: '',
-        machine: '',
-    });
-    const [sessionInfo, setSessionInfo] = useState({
-        connected: false,
-        machine: '',
-    });
+    const [credentials, setCredentials] = useState(DEFAULT_CREDENTIALS);
+    const [sessionInfo, setSessionInfo] = useState(DEFAULT_SESSION_INFO);
 
     const advanceAfterCommandRef = useRef('');
     const pendingCommandIdRef = useRef('');
 
-    const appendTerminalLine = (text, tone = 'default') => {
-        setTerminalLines((prev) => [...prev, createTerminalLine(text, tone)]);
-    };
+    const appendTerminalLine = (text, tone = 'default') => (
+        setTerminalLines((prev) => [...prev, createTerminalLine(text, tone)])
+    );
 
     const machines = useNetappMachines((errorMessage) => appendTerminalLine(errorMessage, 'error'));
     const selectedMachine = credentials.machine || machines[0]?.name || '';
@@ -78,70 +88,84 @@ export default function NetappUpgradePage() {
         }
     };
 
+    const setCredentialField = (field, value) => {
+        setCredentials((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const markPendingCommandComplete = (status = 'done') => {
+        const completedCommandId = pendingCommandIdRef.current;
+        if (!completedCommandId) return;
+
+        setCommands((prev) => updateCommandStatus(prev, completedCommandId, status));
+        pendingCommandIdRef.current = '';
+    };
+
+    const advanceIfNeeded = () => {
+        if (!advanceAfterCommandRef.current) return;
+        advanceAfterCommandRef.current = '';
+        moveToNextCommand();
+    };
+
+    const handleSessionPayload = (payload) => {
+        setSessionInfo({
+            connected: !!payload.connected,
+            machine: payload.machine || '',
+        });
+        appendTerminalLine(
+            `[session] ${payload.message || 'Session updated.'}`,
+            payload.connected ? 'success' : 'warning',
+        );
+    };
+
+    const handleResponsePayload = (payload) => {
+        appendTerminalLine(payload.output || payload.message || '', 'default');
+        markPendingCommandComplete('done');
+        advanceIfNeeded();
+    };
+
+    const handleLegacyCommandDonePayload = (payload) => {
+        setCommands((prev) => updateCommandStatus(
+            prev,
+            payload.commandId,
+            payload.exitCode === 0 ? 'done' : 'error',
+        ));
+        appendTerminalLine(
+            `[${payload.machine}] Completed with exit code ${payload.exitCode}.`,
+            payload.exitCode === 0 ? 'success' : 'error',
+        );
+
+        if (advanceAfterCommandRef.current === payload.commandId) {
+            advanceAfterCommandRef.current = '';
+            moveToNextCommand();
+        }
+        pendingCommandIdRef.current = '';
+    };
+
     const onSocketMessage = (payload) => {
         try {
-            const type = payload?.type;
-            if (type === 'hello') {
-                appendTerminalLine(`[ws] ${payload.message || 'Connection established.'}`, 'info');
-                return;
-            }
-
-            if (type === 'auth_ok' || type === 'session') {
-                setSessionInfo({
-                    connected: !!payload.connected,
-                    machine: payload.machine || '',
-                });
-                appendTerminalLine(`[session] ${payload.message || 'Session updated.'}`, payload.connected ? 'success' : 'warning');
-                return;
-            }
-
-            if (type === 'response') {
-                appendTerminalLine(payload.output || payload.message || '', 'default');
-
-                if (pendingCommandIdRef.current) {
-                    const completedId = pendingCommandIdRef.current;
-                    setCommands((prev) =>
-                        prev.map((command) =>
-                            command.id === completedId ? { ...command, status: 'done' } : command,
-                        ),
-                    );
-                    pendingCommandIdRef.current = '';
-                }
-                if (advanceAfterCommandRef.current) {
-                    advanceAfterCommandRef.current = '';
-                    moveToNextCommand();
-                }
-                return;
-            }
-
-            // Backward compatibility with old websocket message shape.
-            if (type === 'command_output') {
-                appendTerminalLine(payload.line || '', 'default');
-                return;
-            }
-            if (type === 'command_done') {
-                setCommands((prev) =>
-                    prev.map((command) =>
-                        command.id === payload.commandId
-                            ? { ...command, status: payload.exitCode === 0 ? 'done' : 'error' }
-                            : command,
-                    ),
-                );
-                appendTerminalLine(
-                    `[${payload.machine}] Completed with exit code ${payload.exitCode}.`,
-                    payload.exitCode === 0 ? 'success' : 'error',
-                );
-
-                if (advanceAfterCommandRef.current === payload.commandId) {
-                    advanceAfterCommandRef.current = '';
-                    moveToNextCommand();
-                }
-                pendingCommandIdRef.current = '';
-                return;
-            }
-
-            if (type === 'error') {
-                appendTerminalLine(`[error] ${payload.message || 'Unexpected backend error.'}`, 'error');
+            switch (payload?.type) {
+                case 'hello':
+                    appendTerminalLine(`[ws] ${payload.message || 'Connection established.'}`, 'info');
+                    break;
+                case 'auth_ok':
+                case 'session':
+                    handleSessionPayload(payload);
+                    break;
+                case 'response':
+                    handleResponsePayload(payload);
+                    break;
+                // Backward compatibility with older websocket payload shape.
+                case 'command_output':
+                    appendTerminalLine(payload.line || '', 'default');
+                    break;
+                case 'command_done':
+                    handleLegacyCommandDonePayload(payload);
+                    break;
+                case 'error':
+                    appendTerminalLine(`[error] ${payload.message || 'Unexpected backend error.'}`, 'error');
+                    break;
+                default:
+                    break;
             }
         } catch (error) {
             appendTerminalLine(`[error] ${error?.message || 'Failed to process websocket payload.'}`, 'error');
@@ -220,11 +244,7 @@ export default function NetappUpgradePage() {
         }
 
         pendingCommandIdRef.current = activeCommand.id;
-        setCommands((prev) =>
-            prev.map((command) =>
-                command.id === activeCommand.id ? { ...command, status: 'running' } : command,
-            ),
-        );
+        setCommands((prev) => updateCommandStatus(prev, activeCommand.id, 'running'));
         advanceAfterCommandRef.current = activeCommand.id;
     };
 
@@ -275,9 +295,7 @@ export default function NetappUpgradePage() {
                                 <input
                                     className="input-field"
                                     value={credentials.username}
-                                    onChange={(event) =>
-                                        setCredentials((prev) => ({ ...prev, username: event.target.value }))
-                                    }
+                                    onChange={(event) => setCredentialField('username', event.target.value)}
                                     placeholder="admin"
                                 />
                             </label>
@@ -287,9 +305,7 @@ export default function NetappUpgradePage() {
                                     type="password"
                                     className="input-field"
                                     value={credentials.password}
-                                    onChange={(event) =>
-                                        setCredentials((prev) => ({ ...prev, password: event.target.value }))
-                                    }
+                                    onChange={(event) => setCredentialField('password', event.target.value)}
                                     placeholder="Password"
                                 />
                             </label>
@@ -298,9 +314,7 @@ export default function NetappUpgradePage() {
                                 <select
                                     className="select-field"
                                     value={selectedMachine}
-                                    onChange={(event) =>
-                                        setCredentials((prev) => ({ ...prev, machine: event.target.value }))
-                                    }
+                                    onChange={(event) => setCredentialField('machine', event.target.value)}
                                 >
                                     {machines.map((machine) => (
                                         <option key={machine.id} value={machine.name}>

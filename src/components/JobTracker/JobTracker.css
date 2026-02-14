@@ -56,6 +56,146 @@
     padding: 22px 28px;
 }
 
+.job-tracker__loading {
+    min-height: 240px;
+    border: 1px solid color-mix(in srgb, var(--accent), var(--border) 72%);
+    border-radius: var(--radius-md);
+    background:
+        radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--accent-subtle), transparent 30%) 0%, transparent 34%),
+        linear-gradient(160deg, var(--bg-input) 0%, color-mix(in srgb, var(--bg-card), var(--bg-input) 55%) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 18px;
+    color: var(--text-secondary);
+    position: relative;
+    overflow: hidden;
+}
+
+.job-tracker__loading::after {
+    content: '';
+    position: absolute;
+    inset: -40% -25%;
+    background: linear-gradient(105deg, transparent 40%, color-mix(in srgb, #fff, transparent 85%) 50%, transparent 60%);
+    animation: jobLoaderSweep 2.8s linear infinite;
+}
+
+.job-tracker__loading-spinner {
+    color: var(--accent);
+}
+
+.job-loader-orbit {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.job-loader-orbit__ring {
+    position: absolute;
+    border-radius: 50%;
+    border-style: solid;
+}
+
+.job-loader-orbit__ring--outer {
+    inset: 0;
+    border-width: 2px;
+    border-color: color-mix(in srgb, var(--accent), transparent 70%);
+    animation: jobRingPulse 2s ease-in-out infinite;
+}
+
+.job-loader-orbit__ring--inner {
+    inset: 10px;
+    border-width: 2px;
+    border-color: color-mix(in srgb, var(--accent), transparent 40%);
+    animation: jobRingPulse 1.4s ease-in-out infinite reverse;
+}
+
+.job-loader-orbit__core {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    color: #fff;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--accent), transparent 68%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.job-tracker__loading-copy {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.job-tracker__loading-copy p {
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.job-tracker__loading-copy span {
+    margin-top: 2px;
+    display: inline-block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.job-tracker__loading-skeleton {
+    width: min(520px, 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 55%);
+    padding: 10px;
+    display: grid;
+    gap: 9px;
+    position: relative;
+    z-index: 1;
+}
+
+.job-tracker__loading-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.job-tracker__loading-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent), var(--bg-card) 65%);
+}
+
+.job-tracker__loading-line {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--bg-input) 0%, color-mix(in srgb, var(--accent-subtle), var(--bg-input) 25%) 55%, var(--bg-input) 100%);
+    background-size: 220% 100%;
+    animation: jobLineShimmer 1.2s linear infinite;
+}
+
+.job-tracker__loading-line--w1 {
+    width: 72%;
+}
+
+.job-tracker__loading-line--w2 {
+    width: 58%;
+}
+
+.job-tracker__loading-line--w3 {
+    width: 66%;
+}
+
+.job-tracker__empty {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
 .job-step {
     display: flex;
     gap: 14px;
@@ -157,8 +297,48 @@
     color: var(--error);
 }
 
+.job-tracker__poll-error {
+    margin: 0 28px 14px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--error), var(--border) 30%);
+    background: color-mix(in srgb, var(--error-bg), var(--bg-card) 30%);
+    color: var(--error);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .job-tracker .modal-footer {
     margin-top: 0;
     border-top: 1px solid var(--border);
     padding: 14px 28px 20px;
+}
+
+@keyframes jobRingPulse {
+    0%, 100% {
+        transform: scale(0.95);
+        opacity: 0.45;
+    }
+    50% {
+        transform: scale(1.03);
+        opacity: 1;
+    }
+}
+
+@keyframes jobLineShimmer {
+    0% {
+        background-position: 120% 0;
+    }
+    100% {
+        background-position: -120% 0;
+    }
+}
+
+@keyframes jobLoaderSweep {
+    0% {
+        transform: rotate(0deg) translateX(-6%);
+    }
+    100% {
+        transform: rotate(360deg) translateX(-6%);
+    }
 }

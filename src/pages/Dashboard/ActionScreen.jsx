@@ -2,7 +2,7 @@ import { useState } from 'react';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
-import { actionCardColorMap, actionIconMap, resolveActionApi } from '../../utils/actionHandlers';
+import { actionCardColorMap, actionIconMap, resolveActionApi, resolveActionEndpoint } from '../../utils/actionHandlers';
 import './ActionScreen.css';
 
 export default function ActionScreen({ screenId, title, subtitle, apiService }) {
@@ -13,8 +13,9 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
 
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];
+        const endpoint = resolveActionEndpoint(action, values);
         const api = resolveActionApi(action, apiService);
-        const result = await api.executeAction(action.endpoint, values);
+        const result = await api.executeAction(endpoint, values);
         setActiveAction(null);
         setJob(result);
     };

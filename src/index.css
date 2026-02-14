@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 :root {
-  --app-scale: 0.9;
   --bg-primary: #f4f5f7;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
@@ -49,6 +48,7 @@
   --sidebar-width: 320px;
   --sidebar-collapsed: 94px;
   --header-height: 92px;
+  --app-scale: 1;
 }
 
 [data-theme="dark"] {
@@ -101,15 +101,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
-}
-
-/* Match Chrome 100% view to previous 90% visual density */
-@supports (zoom: 1) {
-  #root {
-    zoom: var(--app-scale);
-    width: calc(100% / var(--app-scale));
-    height: calc(100% / var(--app-scale));
-  }
+  min-height: 100%;
 }
 
 body {
@@ -307,11 +299,12 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
 .page-title {
-  font-size: 2rem;
+  font-size: clamp(1.45rem, 1.05rem + 1.4vw, 2rem);
   font-weight: 800;
   letter-spacing: -0.015em;
 }
@@ -351,7 +344,7 @@ textarea {
 
 .modal-content {
   width: min(920px, 100%);
-  max-height: calc(100vh - 56px);
+  max-height: calc(100dvh - 56px);
   overflow: hidden;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -438,13 +431,32 @@ textarea {
   border-radius: 8px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1280px) {
   :root {
-    --sidebar-width: 96px;
+    --sidebar-width: 270px;
+    --header-height: 84px;
   }
 
   .page-header {
+    min-height: 100px;
+    padding: 22px 24px 14px;
+  }
+
+  .page-content {
+    padding: 0 24px 20px;
+  }
+}
+
+@media (max-width: 960px) {
+  :root {
+    --sidebar-width: 96px;
+    --header-height: 76px;
+  }
+
+  .page-header {
+    min-height: auto;
     padding: 20px 18px 14px;
+    align-items: flex-start;
   }
 
   .page-content {
@@ -462,5 +474,28 @@ textarea {
   .modal-content {
     padding: 20px;
     border-radius: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    padding: 16px 14px 10px;
+    gap: 10px;
+  }
+
+  .page-content {
+    padding: 0 14px 14px;
+  }
+
+  .page-actions {
+    width: 100%;
+  }
+
+  .page-actions .btn {
+    width: 100%;
+  }
+
+  .modal-content {
+    padding: 14px;
   }
 }

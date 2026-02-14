@@ -109,7 +109,7 @@ export default function RDMPage() {
         },
         { key: 'vc', label: 'vCenter', filterable: true },
         { key: 'esx_cluster', label: 'ESX Cluster', filterable: true },
-        { key: 'size', label: 'Size', filterable: true, render: formatSizeFromGb },
+        { key: 'size', label: 'Size', filterable: false, render: formatSizeFromGb },
         { key: 'connected', label: 'Connected', filterable: true, render: renderConnectedCell },
     ];
 

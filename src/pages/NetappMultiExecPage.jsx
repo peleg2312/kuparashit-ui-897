@@ -7,77 +7,84 @@ import { useNetappMachines } from '../hooks/useNetappMachines';
 import { createTerminalLine } from '../utils/netappTerminal';
 import './NetappOperations.css';
 
+const DEFAULT_CREDENTIALS = {
+    username: 'admin',
+    password: '',
+};
+
+const DEFAULT_COMMAND = 'version';
+
 export default function NetappMultiExecPage() {
     const [selectedMachines, setSelectedMachines] = useState([]);
     const [focusedMachine, setFocusedMachine] = useState('');
     const [machineLogs, setMachineLogs] = useState({});
     const [systemLogs, setSystemLogs] = useState([]);
-    const [credentials, setCredentials] = useState({
-        username: 'admin',
-        password: '',
-    });
-    const [command, setCommand] = useState('version');
+    const [credentials, setCredentials] = useState(DEFAULT_CREDENTIALS);
+    const [command, setCommand] = useState(DEFAULT_COMMAND);
     const [machineDropdownOpen, setMachineDropdownOpen] = useState(false);
     const [machineSearch, setMachineSearch] = useState('');
 
-    const appendSystemLine = (text, tone = 'default') => {
-        setSystemLogs((prev) => [...prev, createTerminalLine(text, tone)]);
-    };
+    const appendSystemLine = (text, tone = 'default') => (
+        setSystemLogs((prev) => [...prev, createTerminalLine(text, tone)])
+    );
 
-    const appendMachineLine = (machine, text, tone = 'default') => {
+    const appendMachineLine = (machine, text, tone = 'default') => (
         setMachineLogs((prev) => ({
             ...prev,
             [machine]: [...(prev[machine] || []), createTerminalLine(text, tone)],
-        }));
+        }))
+    );
+
+    const setCredentialField = (field, value) => {
+        setCredentials((prev) => ({ ...prev, [field]: value }));
     };
 
     const machines = useNetappMachines((errorMessage) => appendSystemLine(errorMessage, 'error'));
 
+    const handleCommandDone = (payload) => {
+        appendMachineLine(
+            payload.machine,
+            `Completed with exit code ${payload.exitCode}.`,
+            payload.exitCode === 0 ? 'success' : 'error',
+        );
+    };
+
+    const handleBatchDone = (payload) => {
+        appendSystemLine(
+            `Batch ${payload.batchId} finished. Success: ${payload.successCount}, Failed: ${payload.failedCount}.`,
+            payload.failedCount ? 'warning' : 'success',
+        );
+    };
+
     const onSocketMessage = (payload) => {
         try {
-            const type = payload?.type;
-            if (type === 'hello') {
-                appendSystemLine(`[ws] ${payload.message || 'Connection established.'}`, 'info');
-                return;
-            }
-
-            if (type === 'command_start') {
-                appendMachineLine(payload.machine, `Running command: ${payload.command}`, 'info');
-                return;
-            }
-
-            if (type === 'command_output') {
-                appendMachineLine(payload.machine, payload.line || '', 'default');
-                return;
-            }
-
-            if (type === 'command_done') {
-                appendMachineLine(
-                    payload.machine,
-                    `Completed with exit code ${payload.exitCode}.`,
-                    payload.exitCode === 0 ? 'success' : 'error',
-                );
-                return;
-            }
-
-            if (type === 'multi_start') {
-                appendSystemLine(
-                    `Batch ${payload.batchId} started on ${payload.machines.length} machine(s).`,
-                    'info',
-                );
-                return;
-            }
-
-            if (type === 'multi_done') {
-                appendSystemLine(
-                    `Batch ${payload.batchId} finished. Success: ${payload.successCount}, Failed: ${payload.failedCount}.`,
-                    payload.failedCount ? 'warning' : 'success',
-                );
-                return;
-            }
-
-            if (type === 'error') {
-                appendSystemLine(`[error] ${payload.message || 'Unexpected backend error.'}`, 'error');
+            switch (payload?.type) {
+                case 'hello':
+                    appendSystemLine(`[ws] ${payload.message || 'Connection established.'}`, 'info');
+                    break;
+                case 'command_start':
+                    appendMachineLine(payload.machine, `Running command: ${payload.command}`, 'info');
+                    break;
+                case 'command_output':
+                    appendMachineLine(payload.machine, payload.line || '', 'default');
+                    break;
+                case 'command_done':
+                    handleCommandDone(payload);
+                    break;
+                case 'multi_start':
+                    appendSystemLine(
+                        `Batch ${payload.batchId} started on ${payload.machines.length} machine(s).`,
+                        'info',
+                    );
+                    break;
+                case 'multi_done':
+                    handleBatchDone(payload);
+                    break;
+                case 'error':
+                    appendSystemLine(`[error] ${payload.message || 'Unexpected backend error.'}`, 'error');
+                    break;
+                default:
+                    break;
             }
         } catch (error) {
             appendSystemLine(`[error] ${error?.message || 'Failed to process websocket payload.'}`, 'error');
@@ -111,17 +118,23 @@ export default function NetappMultiExecPage() {
 
     const clearSelectedMachines = () => {
         setSelectedMachines([]);
+        setFocusedMachine('');
     };
 
-    const runMultiExec = () => {
+    const validateExecutionInput = () => {
         if (!command.trim()) {
             appendSystemLine('Command is required.', 'warning');
-            return;
+            return false;
         }
         if (!selectedMachines.length) {
             appendSystemLine('Select at least one machine.', 'warning');
-            return;
+            return false;
         }
+        return true;
+    };
+
+    const runMultiExec = () => {
+        if (!validateExecutionInput()) return;
 
         const sent = sendMessage({
             type: 'run_multi',
@@ -187,9 +200,7 @@ export default function NetappMultiExecPage() {
                                 <input
                                     className="input-field"
                                     value={credentials.username}
-                                    onChange={(event) =>
-                                        setCredentials((prev) => ({ ...prev, username: event.target.value }))
-                                    }
+                                    onChange={(event) => setCredentialField('username', event.target.value)}
                                     placeholder="admin"
                                 />
                             </label>
@@ -199,9 +210,7 @@ export default function NetappMultiExecPage() {
                                     className="input-field"
                                     type="password"
                                     value={credentials.password}
-                                    onChange={(event) =>
-                                        setCredentials((prev) => ({ ...prev, password: event.target.value }))
-                                    }
+                                    onChange={(event) => setCredentialField('password', event.target.value)}
                                     placeholder="Password"
                                 />
                             </label>
