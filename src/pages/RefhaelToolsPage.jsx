@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { refhaelApi } from '../api';
 import { HiUpload, HiDownload, HiDocumentText, HiX, HiCheckCircle } from 'react-icons/hi';
+import { createResultDownload, pickFileFromEvent } from '../utils/refhaelHandlers';
 import './RefhaelTools.css';
 
 export default function RefhaelToolsPage() {
@@ -12,7 +13,7 @@ export default function RefhaelToolsPage() {
 
     const handleDrop = (setter) => (e) => {
         e.preventDefault();
-        const file = e.dataTransfer?.files?.[0] || e.target?.files?.[0];
+        const file = pickFileFromEvent(e);
         if (file) setter(file);
     };
 
@@ -31,14 +32,7 @@ export default function RefhaelToolsPage() {
     };
 
     const handleDownload = () => {
-        // Mock download — in production this would be a real download link
-        const blob = new Blob(['Mock Excel content'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = result?.fileName || 'result.xlsx';
-        a.click();
-        URL.revokeObjectURL(url);
+        createResultDownload(result?.fileName);
     };
 
     const handleReset = () => {

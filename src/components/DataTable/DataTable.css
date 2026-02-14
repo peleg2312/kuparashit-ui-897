@@ -107,15 +107,16 @@
 .dt-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
 }
 
 .dt-th {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: color-mix(in srgb, var(--bg-secondary), var(--bg-card) 25%);
+    background: color-mix(in srgb, var(--bg-secondary), var(--bg-card) 45%);
     border-bottom: 1px solid var(--border);
-    padding: 11px 14px;
+    padding: 12px 14px;
     text-align: left;
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -152,31 +153,58 @@
 }
 
 .dt-row:hover {
-    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 22%);
+    background: color-mix(in srgb, var(--bg-card-hover), var(--bg-card) 52%);
 }
 
 .dt-row--selected {
-    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 30%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 42%);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .dt-row--selected:hover {
-    background: color-mix(in srgb, var(--accent-subtle), var(--bg-input) 35%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card-hover) 48%);
 }
 
 .dt-row:nth-child(even):not(.dt-row--selected) {
-    background: color-mix(in srgb, var(--bg-card), var(--bg-secondary) 45%);
+    background: transparent;
 }
 
 .dt-td {
     border-bottom: 1px solid var(--border);
-    padding: 11px 14px;
+    padding: 12px 14px;
     font-size: 0.9rem;
-    white-space: nowrap;
+    white-space: normal;
+    vertical-align: middle;
+    line-height: 1.35;
 }
 
 .dt-td-check {
     width: 40px;
+}
+
+.dt-th-action {
+    width: 88px;
+    text-align: center;
+}
+
+.dt-td-action {
+    text-align: center;
+}
+
+.dt-row-action {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 40%);
+    color: var(--text-secondary);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.dt-row-action:hover {
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 30%);
+    color: var(--accent);
+    transform: translateY(-1px);
 }
 
 .checkbox {
@@ -224,6 +252,33 @@
     color: var(--text-secondary);
 }
 
+.dt-pagination-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.dt-pagination-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 30%);
+}
+
+.dt-pagination-chip--value {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 30%);
+    border-color: color-mix(in srgb, var(--accent), var(--border) 55%);
+}
+
 .highlight {
     color: var(--text-primary);
     font-weight: 800;
@@ -233,6 +288,23 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.dt-page-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 6px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.dt-page-size-select {
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 10px;
+    min-width: 70px;
 }
 
 .dt-page-current {

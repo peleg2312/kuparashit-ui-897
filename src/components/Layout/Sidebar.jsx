@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTeam } from '../../contexts/TeamContext';
 import { getScreensByGroup } from '../../config/screens';
-import { HiMenuAlt2 } from 'react-icons/hi';
+import { HiMenuAlt2, HiShoppingCart } from 'react-icons/hi';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -18,7 +18,20 @@ export default function Sidebar() {
             <div className="sidebar__header">
                 {!collapsed && (
                     <div className="sidebar__brand">
-                        <span className="sidebar__brand-name">Kupa Rashit</span>
+                        <div className="sidebar__brand-mark" aria-hidden="true">
+                            <HiShoppingCart size={18} className="sidebar__brand-cart" />
+                            <span className="sidebar__brand-barcode">
+                                <span className="sidebar__brand-barcode-line sidebar__brand-barcode-line--w1" />
+                                <span className="sidebar__brand-barcode-line sidebar__brand-barcode-line--w2" />
+                                <span className="sidebar__brand-barcode-line sidebar__brand-barcode-line--w3" />
+                                <span className="sidebar__brand-barcode-line sidebar__brand-barcode-line--w2" />
+                                <span className="sidebar__brand-barcode-line sidebar__brand-barcode-line--w1" />
+                            </span>
+                        </div>
+                        <div className="sidebar__brand-text">
+                            <span className="sidebar__brand-name">Kupa</span>
+                            <span className="sidebar__brand-name sidebar__brand-name--accent">Rashit</span>
+                        </div>
                     </div>
                 )}
                 <button
@@ -59,10 +72,6 @@ export default function Sidebar() {
                     </div>
                 ))}
             </nav>
-
-            <div className="sidebar__footer">
-                {!collapsed && <span className="sidebar__version">v1.2.0</span>}
-            </div>
         </aside>
     );
 }

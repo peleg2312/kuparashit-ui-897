@@ -1,0 +1,370 @@
+.netapp-ops-content {
+    overflow: hidden;
+}
+
+.netapp-ops-grid,
+.netapp-multi-grid {
+    display: grid;
+    gap: 16px;
+    height: 100%;
+    min-height: 0;
+}
+
+.netapp-ops-grid {
+    grid-template-columns: minmax(250px, 0.85fr) minmax(680px, 2.6fr) minmax(250px, 0.85fr);
+}
+
+.netapp-multi-grid {
+    grid-template-columns: minmax(260px, 0.85fr) minmax(700px, 2.5fr) minmax(250px, 0.85fr);
+}
+
+.netapp-panel {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    overflow: hidden;
+}
+
+.netapp-panel--session {
+    overflow: visible;
+}
+
+.netapp-panel__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.netapp-panel__title-row--end {
+    justify-content: flex-end;
+}
+
+.netapp-panel__title-row h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.netapp-command-list,
+.netapp-selected-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.netapp-command {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.netapp-command:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.netapp-command--active {
+    border-color: var(--success);
+    box-shadow: 0 0 0 2px var(--success-bg);
+}
+
+.netapp-command__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.netapp-command__textarea,
+.netapp-command-input {
+    min-height: 116px;
+    resize: vertical;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.netapp-command__remove-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.netapp-command__remove-icon:hover {
+    color: var(--error);
+    border-color: color-mix(in srgb, var(--error), transparent 70%);
+    background: var(--error-bg);
+}
+
+.netapp-terminal {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--border), #000 10%);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent-subtle), transparent 25%) 0%, transparent 42%),
+        linear-gradient(180deg, color-mix(in srgb, var(--bg-card), #000 7%) 0%, color-mix(in srgb, var(--bg-input), #000 3%) 100%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 88%);
+}
+
+.netapp-terminal__placeholder {
+    color: var(--text-muted);
+}
+
+.netapp-terminal__line {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-primary);
+}
+
+.netapp-terminal__line--info {
+    color: var(--info);
+}
+
+.netapp-terminal__line--success {
+    color: var(--success);
+}
+
+.netapp-terminal__line--error {
+    color: var(--error);
+}
+
+.netapp-terminal__line--warning {
+    color: var(--warning);
+}
+
+.netapp-form-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.netapp-form-grid > label {
+    display: grid;
+    gap: 6px;
+}
+
+.netapp-form-grid > label > span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.netapp-button-grid {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.netapp-machine-picker {
+    margin-top: 14px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.netapp-machine-picker h3 {
+    font-size: 0.92rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.netapp-machine-dropdown {
+    position: relative;
+}
+
+.netapp-machine-dropdown__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+    font-weight: 600;
+}
+
+.netapp-machine-dropdown__trigger svg {
+    color: var(--text-muted);
+}
+
+.netapp-machine-dropdown__trigger.is-open {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.netapp-machine-dropdown__menu {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    max-height: min(420px, 60vh);
+    overflow: hidden;
+}
+
+.netapp-machine-dropdown__search-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.netapp-machine-dropdown__search {
+    flex: 1 1 220px;
+    min-height: 40px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    background: var(--bg-input);
+}
+
+.netapp-machine-dropdown__search::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+.netapp-machine-dropdown__options {
+    max-height: calc(min(420px, 60vh) - 70px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    padding-right: 4px;
+}
+
+.netapp-machine-picker__item {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 10px 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.netapp-machine-picker__item:last-child {
+    border-bottom: 0;
+}
+
+.netapp-machine-picker__item:hover {
+    background: color-mix(in srgb, var(--bg-input), transparent 20%);
+}
+
+.netapp-machine-picker__item.is-selected {
+    background: var(--accent-subtle);
+}
+
+.netapp-machine-picker__item input {
+    width: 18px;
+    height: 18px;
+}
+
+.netapp-machine-picker__name {
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.netapp-selected-list__item {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.netapp-selected-list__item:hover {
+    border-color: var(--border-hover);
+}
+
+.netapp-selected-list__item.is-active {
+    border-color: var(--success);
+    background: var(--success-bg);
+}
+
+.netapp-empty-state {
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+
+.netapp-small-btn {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 0.83rem;
+}
+
+@media (max-width: 1440px) {
+    .netapp-ops-grid,
+    .netapp-multi-grid {
+        grid-template-columns: minmax(240px, 0.9fr) minmax(400px, 2fr);
+    }
+
+    .netapp-panel--session,
+    .netapp-panel--machines {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 980px) {
+    .netapp-ops-grid,
+    .netapp-multi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .netapp-panel {
+        max-height: none;
+    }
+
+    .netapp-button-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .netapp-machine-dropdown__search-row {
+        align-items: stretch;
+    }
+
+    .netapp-machine-dropdown__search {
+        flex: 1 1 auto;
+    }
+}

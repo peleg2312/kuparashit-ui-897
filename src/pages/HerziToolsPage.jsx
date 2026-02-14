@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { herziCategories, getBoxesByCategory } from '../config/herziBoxes';
 import { herziApi } from '../api';
 import { HiSearch, HiLightningBolt, HiX } from 'react-icons/hi';
+import { formatHerziToolResult, normalizeHerziInput } from '../utils/herziHandlers';
 import './HerziToolsPage.css';
 
 function ResultPopup({ result, onClose }) {
@@ -31,11 +32,12 @@ function DynamicBox({ box }) {
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        if (!input.trim()) return;
+        const normalizedInput = normalizeHerziInput(input);
+        if (!normalizedInput) return;
         setLoading(true);
         try {
-            const response = await herziApi.query(box.endpoint, input.trim());
-            setResult(response);
+            const response = await herziApi.query(box.endpoint, normalizedInput);
+            setResult(formatHerziToolResult(response));
         } finally {
             setLoading(false);
         }

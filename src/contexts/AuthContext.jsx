@@ -1,48 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authApi } from '../api';
+import { clearSession, normalizeAuthResponse, saveSession } from '../utils/authHandlers';
 
 const AuthContext = createContext(null);
-const SESSION_KEY = 'kupa_session_v2';
-
-function saveSession(session) {
-    localStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-            user: session.user,
-            authMode: session.authMode,
-            permissions: session.permissions,
-        }),
-    );
-}
-
-function loadSession() {
-    try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed?.user?.id) return null;
-        return parsed;
-    } catch {
-        return null;
-    }
-}
-
-function clearSession() {
-    localStorage.removeItem(SESSION_KEY);
-}
-
-function normalizeAuthResponse(data, fallbackMode = 'local') {
-    if (!data?.user) return null;
-    const teams = data.user.teams || data.teams || [];
-    return {
-        user: { ...data.user, teams },
-        authMode: data.authMode || fallbackMode,
-        token: data.token || '',
-        teams,
-        permissions: data.permissions || [],
-    };
-}
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -77,14 +38,7 @@ export function AuthProvider({ children }) {
                         permissions: permissionData.permissions || normalized.permissions,
                     });
                 } else if (mounted) {
-                    const stored = loadSession();
-                    if (stored?.user) {
-                        setUser(stored.user);
-                        setAuthMode(stored.authMode || 'local');
-                        setPermissions(stored.permissions || []);
-                        setToken('');
-                        setIsAuthenticated(true);
-                    }
+                    clearSession();
                 }
             } catch {
                 if (mounted) clearSession();

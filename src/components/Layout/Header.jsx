@@ -6,7 +6,7 @@ import { HiSun, HiMoon, HiChevronDown } from 'react-icons/hi';
 import './Header.css';
 
 export default function Header() {
-    const { user, authMode } = useAuth();
+    const { user } = useAuth();
     const { currentTeam, userTeams, switchTeam } = useTeam();
     const { theme, toggleTheme } = useTheme();
 
@@ -25,6 +25,26 @@ export default function Header() {
     }, []);
 
     const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+    const getTeamMark = (team) => team?.name?.[0]?.toUpperCase() || '?';
+
+    const renderTeamBadge = (team, className) => {
+        const hasImage = Boolean(team?.image);
+        const badgeClass = `${className} ${hasImage ? `${className}--image` : ''}`.trim();
+
+        return (
+            <div className={badgeClass} style={hasImage ? undefined : { background: team?.color || 'var(--accent)' }}>
+                {hasImage ? (
+                    <img
+                        src={team.image}
+                        alt={`${team.name} team`}
+                        className={`${className}-img`}
+                    />
+                ) : (
+                    getTeamMark(team)
+                )}
+            </div>
+        );
+    };
 
     return (
         <header className="app-header">
@@ -35,9 +55,7 @@ export default function Header() {
                     onClick={() => setShowTeamMenu(!showTeamMenu)}
                     title="Switch Team"
                 >
-                    <div className="header__team-icon" style={{ background: currentTeam?.color || 'var(--accent)' }}>
-                        {currentTeam?.name?.[0] || '?'}
-                    </div>
+                    {renderTeamBadge(currentTeam, 'header__team-icon')}
                     <div className="header__team-info">
                         <span className="header__team-name">{currentTeam?.name || 'Select Team'}</span>
                         <span className="header__team-role">Workspace</span>
@@ -54,7 +72,7 @@ export default function Header() {
                                 className={`header__dropdown-item ${team.id === currentTeam?.id ? 'active' : ''}`}
                                 onClick={() => { switchTeam(team.id); setShowTeamMenu(false); }}
                             >
-                                <div className="header__dropdown-icon" style={{ background: team.color }}>{team.name[0]}</div>
+                                {renderTeamBadge(team, 'header__dropdown-icon')}
                                 <div className="header__dropdown-text">
                                     <div className="header__dropdown-name">{team.name}</div>
                                     <div className="header__dropdown-desc">{team.description}</div>
@@ -68,8 +86,6 @@ export default function Header() {
 
             {/* Right: Theme Toggle & User Info */}
             <div className="header__right">
-                <span className="badge badge-accent">{authMode.toUpperCase()}</span>
-
                 <button
                     className="btn-icon theme-toggle"
                     onClick={toggleTheme}
@@ -83,7 +99,6 @@ export default function Header() {
                 <div className="header__user">
                     <div className="header__user-info">
                         <span className="header__user-name">{user?.name}</span>
-                        <span className="header__user-role">{authMode.toUpperCase()} • {user?.role || 'guest'}</span>
                     </div>
                     <div className="header__avatar">
                         {getInitials(user?.name)}

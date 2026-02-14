@@ -34,10 +34,27 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: #fff;
     box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.header__team-icon--image {
+    width: 104px;
+    height: 60px;
+    border-radius: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+}
+
+.header__team-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
 }
 
 .header__team-info {
@@ -118,6 +135,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.header__dropdown-icon--image {
+    width: 92px;
+    height: 52px;
+    border-radius: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+}
+
+.header__dropdown-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
 }
 
 .header__dropdown-name {

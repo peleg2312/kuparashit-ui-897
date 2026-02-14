@@ -25,7 +25,7 @@ export default function LoginPage() {
             await loginLocal({ username, password });
             navigate('/', { replace: true });
         } catch {
-            setError('Invalid local user. Try: admin, sarah, john');
+            setError('Invalid credentials. Try admin/admin123, sarah/sarah123, john/john123');
         } finally {
             setLoading(false);
         }

@@ -1,84 +1,115 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DashboardScreen from './DashboardScreen';
 import { mainApi } from '../../api';
-import { HiClipboardList, HiX } from 'react-icons/hi';
+import { HiX } from 'react-icons/hi';
+import Toast from '../../components/Toast/Toast';
+import { copyListToClipboard } from '../../utils/clipboardHandlers';
 
-function NAAModal({ vm, onClose }) {
-    const naaList = vm?.naaDevices || [];
+function VMNaaListModal({ vmName, list, onClose }) {
+    const [toast, setToast] = useState('');
+    const [toastType, setToastType] = useState('success');
+    const toastTimerRef = useRef(null);
+
+    useEffect(() => () => {
+        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    }, []);
+
+    const showToast = (message, type = 'success') => {
+        setToast(message);
+        setToastType(type);
+        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = window.setTimeout(() => setToast(''), 2600);
+    };
+
+    const copyAll = async () => {
+        try {
+            await copyListToClipboard(list);
+            showToast(`Copied NAA list for ${vmName}`, 'success');
+        } catch {
+            showToast('Copy failed', 'error');
+        }
+    };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 760 }}>
                 <div className="modal-header">
                     <div>
-                        <h3 className="modal-title" style={{ fontSize: '1.3rem' }}>NAA Devices</h3>
-                        <p className="page-subtitle">{vm.name}</p>
+                        <h3 className="modal-title" style={{ fontSize: '1.2rem' }}>VM NAA List</h3>
+                        <p className="page-subtitle">{vmName}</p>
                     </div>
                     <button className="btn-icon" onClick={onClose}><HiX size={20} /></button>
                 </div>
-
-                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {!naaList.length && <div className="badge badge-warning">No NAA mappings on this VM</div>}
-                    {naaList.map((naa) => (
+                <div className="modal-body" style={{ display: 'grid', gap: 8 }}>
+                    {list.map((item) => (
                         <div
-                            key={naa.id}
+                            key={item}
                             style={{
                                 border: '1px solid var(--border)',
-                                background: 'var(--bg-input)',
                                 borderRadius: 'var(--radius-md)',
                                 padding: '10px 12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                background: 'var(--bg-input)',
+                                fontFamily: 'JetBrains Mono, monospace',
+                                fontSize: '0.84rem',
                             }}
                         >
-                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.86rem' }}>{naa.id}</span>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <span className="badge badge-info">{naa.size} GB</span>
-                                <span className="badge badge-accent">{naa.type}</span>
-                            </div>
+                            {item}
                         </div>
                     ))}
                 </div>
-
                 <div className="modal-footer">
+                    <button className="btn btn-secondary" onClick={copyAll}>Copy All</button>
                     <button className="btn btn-primary" onClick={onClose}>Close</button>
                 </div>
             </div>
+            <Toast message={toast} type={toastType} onClose={() => setToast('')} />
         </div>
     );
 }
 
 export default function VMSPage() {
-    const [selectedVM, setSelectedVM] = useState(null);
+    const [naaPopup, setNaaPopup] = useState(null);
+
+    const handleNaaPopupClose = () => setNaaPopup(null);
+
+    const handleNaaChipClick = (event, rowName, naaList) => {
+        event.stopPropagation();
+        setNaaPopup({ vmName: rowName, list: naaList });
+    };
+
+    const createNaaChipClickHandler = (rowName, naaList) => (event) => handleNaaChipClick(event, rowName, naaList);
+
+    const renderVmNaaCell = (values, row) => {
+        if (!Array.isArray(values)) return '';
+        if (!values.length) return <span className="badge badge-warning">none</span>;
+
+        return (
+            <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
+                {values.map((item) => (
+                    <button
+                        key={item}
+                        className="badge badge-accent"
+                        style={{ fontFamily: 'JetBrains Mono, monospace', border: 'none', cursor: 'pointer' }}
+                        onClick={createNaaChipClickHandler(row.name, values)}
+                    >
+                        {item}
+                    </button>
+                ))}
+            </span>
+        );
+    };
 
     const columns = [
-        { key: 'name', label: 'Name', filterable: false, sortable: true },
-        { key: 'ip', label: 'IP Address' },
-        { key: 'os', label: 'OS', filterable: true },
-        { key: 'cpu', label: 'vCPUs' },
-        { key: 'memory', label: 'RAM (GB)' },
-        { key: 'storage', label: 'Storage (GB)' },
+        { key: 'name', label: 'Name', filterable: true, sortable: true, width: '15%' },
         {
-            key: 'naa',
-            label: 'NAA Devices',
-            render: (_, row) => {
-                const count = row.naaDevices?.length || 0;
-                if (!count) return <span className="badge badge-warning">No NAA</span>;
-                return (
-                    <button
-                        className="btn btn-secondary"
-                        style={{ minHeight: 34, padding: '6px 10px' }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedVM(row); }}
-                    >
-                        <HiClipboardList size={15} />
-                        {count} items
-                    </button>
-                );
-            },
+            key: 'naas_of_rdms',
+            label: 'NAAs Of RDMs',
+            width: '60%',
+            render: renderVmNaaCell,
+            filterable: true
         },
-        { key: 'vcenter', label: 'vCenter', filterable: true },
-        { key: 'status', label: 'Status', filterable: true },
+        { key: 'datastore', label: 'Datastore', filterable: true },
+        { key: 'vc', label: 'vCenter', filterable: true },
     ];
 
     return (
@@ -90,8 +121,15 @@ export default function VMSPage() {
                 columns={columns}
                 fetchData={mainApi.getVMs}
                 readOnly={true}
+                allowSelection={false}
             />
-            {selectedVM && <NAAModal vm={selectedVM} onClose={() => setSelectedVM(null)} />}
+            {naaPopup && (
+                <VMNaaListModal
+                    vmName={naaPopup.vmName}
+                    list={naaPopup.list}
+                    onClose={handleNaaPopupClose}
+                />
+            )}
         </>
     );
 }

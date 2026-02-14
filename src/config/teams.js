@@ -1,3 +1,7 @@
+import NasaLogo from '../assets/teams/nasa-logo.svg';
+
+
+
 const teams = {
     BLOCK: {
         id: 'BLOCK',
@@ -13,7 +17,7 @@ const teams = {
         description: 'NASA Storage Team',
         screens: ['qtree', 'ds'],
         color: '#2196f3',
-        image: null,
+        image: NasaLogo,
     },
 };
 

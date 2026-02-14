@@ -1,37 +1,8 @@
 import { useState } from 'react';
 import { priceApi } from '../api';
 import { HiCurrencyDollar, HiCalculator } from 'react-icons/hi';
+import { formatPriceDetailLabel, machineTypes, normalizePriceValues } from '../utils/priceHandlers';
 import './PricePage.css';
-
-const machineTypes = {
-    NETAPP: {
-        label: 'NetApp',
-        description: 'NetApp ONTAP Storage',
-        color: '#2196f3',
-        params: [
-            { name: 'size', label: 'Size (GB)', type: 'number', required: true },
-            { name: 'iops', label: 'IOPS', type: 'number', required: false },
-        ],
-    },
-    PFLEX: {
-        label: 'PowerFlex',
-        description: 'Dell PowerFlex SDS',
-        color: '#9c27b0',
-        params: [
-            { name: 'size', label: 'Size (GB)', type: 'number', required: true },
-            { name: 'replicas', label: 'Replicas', type: 'number', required: false },
-        ],
-    },
-    PMAX: {
-        label: 'PowerMax',
-        description: 'Dell PowerMax Array',
-        color: '#ff9800',
-        params: [
-            { name: 'size', label: 'Size (GB)', type: 'number', required: true },
-            { name: 'srdf', label: 'Enable SRDF', type: 'toggle', required: false },
-        ],
-    },
-};
 
 export default function PricePage() {
     const [activeTab, setActiveTab] = useState('NETAPP');
@@ -53,11 +24,7 @@ export default function PricePage() {
 
     const handleCalculate = async () => {
         setLoading(true);
-        const numValues = {};
-        Object.entries(values).forEach(([k, v]) => {
-            numValues[k] = typeof v === 'string' ? Number(v) : v;
-        });
-        const res = await priceApi.calculate(activeTab, numValues);
+        const res = await priceApi.calculate(activeTab, normalizePriceValues(values));
         setResult(res);
         setLoading(false);
     };
@@ -160,7 +127,7 @@ export default function PricePage() {
                             <div className="price-result-details">
                                 {Object.entries(result).filter(([k]) => k !== 'price' && k !== 'error').map(([key, val]) => (
                                     <div key={key} className="price-detail-row">
-                                        <span className="price-detail-label">{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</span>
+                                        <span className="price-detail-label">{formatPriceDetailLabel(key)}</span>
                                         <span className="price-detail-value">{String(val)}</span>
                                     </div>
                                 ))}

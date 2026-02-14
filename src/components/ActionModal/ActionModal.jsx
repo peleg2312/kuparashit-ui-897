@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { mainApi } from '../../api';
 import { HiX, HiExclamationCircle } from 'react-icons/hi';
+import { applyFieldChange, loadDropdownOptions, validateActionValues } from '../../utils/actionModalHandlers';
 import './ActionModal.css';
 
 export default function ActionModal({ action, initialValues = {}, onClose, onSubmit }) {
@@ -17,26 +17,8 @@ export default function ActionModal({ action, initialValues = {}, onClose, onSub
         if (!action) return;
 
         const run = async () => {
-            for (const param of action.params) {
-                if (param.type !== 'dropdown-api') continue;
-
-                const dependencyName = param.dependsOn;
-                if (!dependencyName) {
-                    const options = await mainApi.getDropdownOptions(param.source);
-                    setDropdownOptions((prev) => ({ ...prev, [param.name]: options }));
-                    continue;
-                }
-
-                const dependencyValue = values[dependencyName];
-                if (!dependencyValue) {
-                    setDropdownOptions((prev) => ({ ...prev, [param.name]: [] }));
-                    continue;
-                }
-
-                const queryKey = param.queryKey || dependencyName;
-                const options = await mainApi.getDropdownOptions(param.source, { [queryKey]: dependencyValue });
-                setDropdownOptions((prev) => ({ ...prev, [param.name]: options }));
-            }
+            const loadedOptions = await loadDropdownOptions(action, values);
+            setDropdownOptions((prev) => ({ ...prev, ...loadedOptions }));
         };
 
         run();
@@ -45,31 +27,12 @@ export default function ActionModal({ action, initialValues = {}, onClose, onSub
     if (!action) return null;
 
     const handleChange = (name, value) => {
-        setValues((prev) => {
-            const next = { ...prev, [name]: value };
-            action.params.forEach((param) => {
-                if (param.dependsOn === name) {
-                    next[param.name] = param.multi ? [] : '';
-                }
-            });
-            return next;
-        });
+        setValues((prev) => applyFieldChange(prev, action, name, value));
         if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
     };
 
     const validate = () => {
-        const nextErrors = {};
-        action.params.forEach((param) => {
-            const value = values[param.name];
-            if (param.required && (value === undefined || value === '' || value === null || (Array.isArray(value) && value.length === 0))) {
-                nextErrors[param.name] = `${param.label} is required`;
-            }
-            if (param.type === 'number' && value !== '' && value != null) {
-                const num = Number(value);
-                if (param.min != null && num < param.min) nextErrors[param.name] = `Min value is ${param.min}`;
-                if (param.max != null && num > param.max) nextErrors[param.name] = `Max value is ${param.max}`;
-            }
-        });
+        const nextErrors = validateActionValues(action, values);
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
     };

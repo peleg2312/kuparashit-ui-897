@@ -1,7 +1,7 @@
-export { authApi } from './authApi';
-export { mainApi } from './mainApi';
-export { kprApi } from './kprApi';
-export { exchApi } from './exchApi';
-export { herziApi } from './herziApi';
-export { priceApi } from './priceApi';
-export { refhaelApi } from './refhaelApi';
+export { authApi } from './auth';
+export { mainApi } from './main';
+export { kprApi } from './kpr';
+export { exchApi } from './exch';
+export { herziApi } from './herzi';
+export { priceApi } from './price';
+export { refhaelApi } from './refhael';

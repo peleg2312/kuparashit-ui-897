@@ -2,41 +2,18 @@ import { useState } from 'react';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
-import { exchApi, kprApi, mainApi } from '../../api';
-import { HiPlus, HiTrash, HiViewGrid, HiServer, HiDatabase, HiCube } from 'react-icons/hi';
+import { actionCardColorMap, actionIconMap, resolveActionApi } from '../../utils/actionHandlers';
 import './ActionScreen.css';
-
-const iconMap = {
-    create: HiPlus,
-    delete: HiTrash,
-    createCluster: HiViewGrid,
-    extend: HiCube,
-    // Add defaults
-    default: HiServer
-};
-
-const colorMap = {
-    create: 'var(--accent)',
-    delete: 'var(--error)',
-    createCluster: 'var(--info)',
-    extend: 'var(--warning)',
-    default: 'var(--text-secondary)'
-};
 
 export default function ActionScreen({ screenId, title, subtitle, apiService }) {
     const [activeAction, setActiveAction] = useState(null);
     const [job, setJob] = useState(null);
 
-    const apiByName = {
-        main: mainApi,
-        kpr: kprApi,
-        exch: exchApi,
-    };
     const actions = getActionsForScreen(screenId);
 
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];
-        const api = apiByName[action.api] || apiService || kprApi;
+        const api = resolveActionApi(action, apiService);
         const result = await api.executeAction(action.endpoint, values);
         setActiveAction(null);
         setJob(result);
@@ -59,8 +36,8 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
 
                 <div className="action-grid">
                     {Object.entries(actions).map(([key, action]) => {
-                        const Icon = iconMap[key] || iconMap.default;
-                        const color = colorMap[key] || colorMap.default;
+                        const Icon = actionIconMap[key] || actionIconMap.default;
+                        const color = actionCardColorMap[key] || actionCardColorMap.default;
 
                         return (
                             <button

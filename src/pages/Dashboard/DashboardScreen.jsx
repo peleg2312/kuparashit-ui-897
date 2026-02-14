@@ -1,47 +1,52 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/DataTable/DataTable';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
-import { exchApi, kprApi, mainApi } from '../../api';
-import { HiPlus, HiTrash, HiViewGrid } from 'react-icons/hi';
+import { herziApi } from '../../api';
+import { HiPlus, HiSearch, HiTrash, HiViewGrid, HiX } from 'react-icons/hi';
+import { actionButtonStyleMap, actionIconMap, buildDeleteInitialValues, resolveActionApi } from '../../utils/actionHandlers';
+import { formatHerziResult, herziQueryByScreen } from '../../utils/dashboardScreenHandlers';
 import './DashboardScreen.css';
 
-const iconMap = {
-    create: HiPlus,
-    delete: HiTrash,
-    createCluster: HiViewGrid,
-    extend: HiPlus,
-};
-
-const btnStyleMap = {
-    create: 'btn-primary',
-    delete: 'btn-danger',
-    createCluster: 'btn-secondary',
-    extend: 'btn-secondary',
-};
-
-function buildDeleteInitialValues(action, selectedRows) {
-    if (!action || !selectedRows.length) return {};
-    const values = {};
-    const names = selectedRows.map((row) => row.name).filter(Boolean);
-    const first = selectedRows[0];
-
-    action.params.forEach((param, index) => {
-        if (index === 0) {
-            if (param.multi) values[param.name] = names;
-            else values[param.name] = names[0] || '';
-            return;
-        }
-        if (param.name === 'vcenter' && first?.vcenter) values[param.name] = first.vcenter;
-        if (param.name === 'cluster' && first?.cluster) values[param.name] = first.cluster;
-    });
-
-    return values;
+function HerziResultModal({ title, loading, result, onClose }) {
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 760 }}>
+                <div className="modal-header">
+                    <div>
+                        <h2 className="modal-title">{title}</h2>
+                        <p className="page-subtitle">Live Herzi query result</p>
+                    </div>
+                    <button className="btn-icon" onClick={onClose}><HiX size={18} /></button>
+                </div>
+                <div className="modal-body">
+                    {loading ? (
+                        <p>Querying Herzi...</p>
+                    ) : (
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.84rem' }}>
+                            {result || 'No result'}
+                        </pre>
+                    )}
+                </div>
+                <div className="modal-footer">
+                    <button className="btn btn-primary" onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
-export default function DashboardScreen({ screenId, title, subtitle, columns, fetchData, apiService, readOnly = false }) {
+export default function DashboardScreen({
+    screenId,
+    title,
+    subtitle,
+    columns,
+    fetchData,
+    apiService,
+    readOnly = false,
+    allowSelection = true,
+}) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeAction, setActiveAction] = useState(null);
@@ -49,12 +54,10 @@ export default function DashboardScreen({ screenId, title, subtitle, columns, fe
     const [job, setJob] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
+    const [herziLoading, setHerziLoading] = useState(false);
+    const [herziResult, setHerziResult] = useState('');
+    const [showHerziResult, setShowHerziResult] = useState(false);
 
-    const apiByName = {
-        main: mainApi,
-        kpr: kprApi,
-        exch: exchApi,
-    };
     const actions = readOnly ? {} : getActionsForScreen(screenId);
 
     const loadData = useCallback(() => {
@@ -84,13 +87,32 @@ export default function DashboardScreen({ screenId, title, subtitle, columns, fe
         const payload = activeAction === 'delete'
             ? { ...values, selectedIds }
             : values;
-        const api = apiByName[action.api] || apiService || kprApi;
+        const api = resolveActionApi(action, apiService);
         const result = await api.executeAction(action.endpoint, payload);
         setActiveAction(null);
         setActionInitialValues({});
         setJob(result);
         setSelectedIds([]);
         setSelectedRows([]);
+    };
+
+    const handleRowHerziSearch = async (row) => {
+        const config = herziQueryByScreen[screenId];
+        if (!config) return;
+
+        const input = config.getInput(row);
+        if (!input) return;
+
+        setShowHerziResult(true);
+        setHerziLoading(true);
+        try {
+            const result = await herziApi.query(config.endpoint, String(input));
+            setHerziResult(formatHerziResult(result));
+        } catch (error) {
+            setHerziResult(`Query failed: ${error?.message || 'unknown error'}`);
+        } finally {
+            setHerziLoading(false);
+        }
     };
 
     return (
@@ -103,8 +125,8 @@ export default function DashboardScreen({ screenId, title, subtitle, columns, fe
                 {!readOnly && (
                     <div className="page-actions">
                         {Object.entries(actions).map(([key, action]) => {
-                            const Icon = iconMap[key] || HiPlus;
-                            const style = btnStyleMap[key] || 'btn-secondary';
+                            const Icon = actionIconMap[key] || HiPlus;
+                            const style = actionButtonStyleMap[key] || 'btn-secondary';
                             const label = key === 'delete' && selectedRows.length > 0
                                 ? `${action.label} (${selectedRows.length} preselected)`
                                 : action.label;
@@ -128,7 +150,12 @@ export default function DashboardScreen({ screenId, title, subtitle, columns, fe
                     columns={columns}
                     data={data}
                     loading={loading}
-                    enableSelection={!readOnly && !!actions.delete}
+                    enableSelection={!readOnly && !!actions.delete && allowSelection}
+                    rowAction={herziQueryByScreen[screenId] ? {
+                        title: 'Search in Herzi',
+                        icon: <HiSearch size={16} />,
+                        onClick: handleRowHerziSearch,
+                    } : null}
                     onSelectionChange={(ids, rows) => {
                         setSelectedIds(ids);
                         setSelectedRows(rows);
@@ -150,6 +177,18 @@ export default function DashboardScreen({ screenId, title, subtitle, columns, fe
 
             {job && (
                 <JobTracker job={job} onClose={() => { setJob(null); loadData(); }} />
+            )}
+
+            {showHerziResult && (
+                <HerziResultModal
+                    title="Herzi Search"
+                    loading={herziLoading}
+                    result={herziResult}
+                    onClose={() => {
+                        setShowHerziResult(false);
+                        setHerziResult('');
+                    }}
+                />
             )}
         </div>
     );

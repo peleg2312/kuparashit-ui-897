@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 :root {
+  --app-scale: 0.9;
   --bg-primary: #f4f5f7;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
@@ -8,6 +9,8 @@
   --bg-elevated: #ffffff;
   --bg-input: #f3f4f8;
   --bg-overlay: rgba(17, 21, 32, 0.54);
+  --bg-decor-1: rgba(200, 29, 46, 0.05);
+  --bg-decor-2: rgba(31, 76, 154, 0.05);
 
   --text-primary: #151a25;
   --text-secondary: #475064;
@@ -49,38 +52,40 @@
 }
 
 [data-theme="dark"] {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: #1e293b;
-  --bg-card-hover: #273449;
-  --bg-elevated: #243246;
-  --bg-input: #111b2e;
-  --bg-overlay: rgba(3, 8, 20, 0.68);
+  --bg-primary: #0b0b0d;
+  --bg-secondary: #121216;
+  --bg-card: #17171c;
+  --bg-card-hover: #1f2026;
+  --bg-elevated: #1a1a21;
+  --bg-input: #101015;
+  --bg-overlay: rgba(4, 4, 6, 0.74);
+  --bg-decor-1: rgba(216, 58, 71, 0.12);
+  --bg-decor-2: rgba(255, 255, 255, 0.03);
 
-  --text-primary: #f2f5fb;
-  --text-secondary: #b2bdd1;
-  --text-muted: #7e8aa6;
+  --text-primary: #f3f3f5;
+  --text-secondary: #c4c4cd;
+  --text-muted: #8f9099;
 
-  --border: rgba(154, 166, 192, 0.2);
-  --border-hover: rgba(180, 191, 216, 0.3);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --accent: #ef4153;
-  --accent-hover: #ff6373;
-  --accent-subtle: rgba(239, 65, 83, 0.2);
-  --accent-gradient: linear-gradient(145deg, #f03f53 0%, #93203f 100%);
+  --accent: #d83a47;
+  --accent-hover: #ef4d5b;
+  --accent-subtle: rgba(216, 58, 71, 0.22);
+  --accent-gradient: linear-gradient(145deg, #ef4d5b 0%, #a61f2d 100%);
 
-  --success: #46d697;
-  --success-bg: rgba(70, 214, 151, 0.16);
-  --warning: #f4c259;
-  --warning-bg: rgba(244, 194, 89, 0.16);
-  --error: #ff6c78;
-  --error-bg: rgba(255, 108, 120, 0.18);
-  --info: #6cb7ff;
-  --info-bg: rgba(108, 183, 255, 0.18);
+  --success: #48c48e;
+  --success-bg: rgba(72, 196, 142, 0.16);
+  --warning: #e0b94e;
+  --warning-bg: rgba(224, 185, 78, 0.16);
+  --error: #ff5f6d;
+  --error-bg: rgba(255, 95, 109, 0.2);
+  --info: #e2848d;
+  --info-bg: rgba(226, 132, 141, 0.18);
 
-  --shadow-sm: 0 6px 14px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 14px 24px rgba(0, 0, 0, 0.34);
-  --shadow-lg: 0 22px 34px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.34);
+  --shadow-md: 0 16px 28px rgba(0, 0, 0, 0.44);
+  --shadow-lg: 0 24px 38px rgba(0, 0, 0, 0.56);
 }
 
 *,
@@ -98,11 +103,20 @@ body,
   height: 100%;
 }
 
+/* Match Chrome 100% view to previous 90% visual density */
+@supports (zoom: 1) {
+  #root {
+    zoom: var(--app-scale);
+    width: calc(100% / var(--app-scale));
+    height: calc(100% / var(--app-scale));
+  }
+}
+
 body {
   font-family: 'Manrope', sans-serif;
   background:
-    radial-gradient(circle at 12% 10%, rgba(200, 29, 46, 0.05) 0%, transparent 34%),
-    radial-gradient(circle at 80% 5%, rgba(31, 76, 154, 0.05) 0%, transparent 42%),
+    radial-gradient(circle at 12% 10%, var(--bg-decor-1) 0%, transparent 34%),
+    radial-gradient(circle at 80% 5%, var(--bg-decor-2) 0%, transparent 42%),
     var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
@@ -215,6 +229,24 @@ textarea {
   padding: 12px 16px;
   font-size: 1rem;
   transition: all var(--transition-fast);
+}
+
+.select-field {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 46px;
+  cursor: pointer;
+  background-image:
+    linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--text-secondary), transparent 12%) 50%),
+    linear-gradient(135deg, color-mix(in srgb, var(--text-secondary), transparent 12%) 50%, transparent 50%),
+    linear-gradient(to right, color-mix(in srgb, var(--border), transparent 35%), color-mix(in srgb, var(--border), transparent 35%));
+  background-position:
+    calc(100% - 20px) calc(50% - 2px),
+    calc(100% - 14px) calc(50% - 2px),
+    calc(100% - 34px) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 18px;
+  background-repeat: no-repeat;
 }
 
 .input-field:focus,

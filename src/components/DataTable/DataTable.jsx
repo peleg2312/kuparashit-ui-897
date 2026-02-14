@@ -1,5 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { HiSearch, HiFilter, HiChevronLeft, HiChevronRight, HiChevronDown } from 'react-icons/hi';
+import {
+    applyTableTransforms,
+    buildFilterOptions,
+    getRowClusterKey,
+    getRowId,
+    getSelectedRowsByIds,
+    getSelectionClusterKey,
+    getStatusClass,
+} from '../../utils/dataTableHandlers';
+import Toast from '../Toast/Toast';
 import './DataTable.css';
 
 export default function DataTable({
@@ -8,7 +18,8 @@ export default function DataTable({
     loading = false,
     onRowClick,
     enableSelection = false,
-    onSelectionChange
+    onSelectionChange,
+    rowAction = null,
 }) {
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState(null);
@@ -17,82 +28,87 @@ export default function DataTable({
     const [page, setPage] = useState(1);
     const [showFilters, setShowFilters] = useState(false);
     const [selected, setSelected] = useState([]);
-    const pageSize = 14;
+    const [pageSize, setPageSize] = useState(14);
+    const [toastMessage, setToastMessage] = useState('');
+    const toastTimerRef = useRef(null);
 
-    // Get unique values for filter dropdowns
+    useEffect(() => () => {
+        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    }, []);
+
     const filterOptions = useMemo(() => {
-        const opts = {};
-        columns.filter(c => c.filterable).forEach(col => {
-            opts[col.key] = [...new Set(data.map(row => row[col.key]).filter(Boolean))].sort();
-        });
-        return opts;
+        return buildFilterOptions(columns, data);
     }, [columns, data]);
 
-    // Filter + Search
     const filtered = useMemo(() => {
-        let result = data;
-
-        // Apply search
-        if (search) {
-            const q = search.toLowerCase();
-            result = result.filter(row =>
-                columns.some(col => String(row[col.key] || '').toLowerCase().includes(q))
-            );
-        }
-
-        // Apply filters
-        Object.entries(filters).forEach(([key, val]) => {
-            if (val && val !== '__all__') {
-                result = result.filter(row => String(row[key]) === val);
-            }
-        });
-
-        // Sort
-        if (sortBy) {
-            result = [...result].sort((a, b) => {
-                const av = a[sortBy], bv = b[sortBy];
-                if (av == null) return 1;
-                if (bv == null) return -1;
-                if (typeof av === 'number') return sortDir === 'asc' ? av - bv : bv - av;
-                return sortDir === 'asc'
-                    ? String(av).localeCompare(String(bv))
-                    : String(bv).localeCompare(String(av));
-            });
-        }
-
-        return result;
+        return applyTableTransforms({ data, search, columns, filters, sortBy, sortDir });
     }, [data, search, filters, sortBy, sortDir, columns]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const pagedData = filtered.slice((page - 1) * pageSize, page * pageSize);
+    const selectedClusterKey = getSelectionClusterKey(data, selected);
+    const fallbackClusterKey = selectedClusterKey || getRowClusterKey(pagedData[0] || {});
+    const selectablePageRows = fallbackClusterKey
+        ? pagedData.filter((row) => getRowClusterKey(row) === fallbackClusterKey)
+        : pagedData;
 
     // Selection Logic
     const handleSelectAll = (e) => {
         if (e.target.checked) {
-            const pageIds = pagedData.map((row) => row.id);
+            const pageIds = selectablePageRows.map((row, idx) => getRowId(row, idx));
             const newSel = [...new Set([...selected, ...pageIds])];
             setSelected(newSel);
-            onSelectionChange?.(newSel, filtered.filter((row) => newSel.includes(row.id)));
+            onSelectionChange?.(
+                newSel,
+                getSelectedRowsByIds(filtered, newSel),
+            );
         } else {
-            const pageIds = new Set(pagedData.map((row) => row.id));
+            const pageIds = new Set(selectablePageRows.map((row, idx) => getRowId(row, idx)));
             const newSel = selected.filter((id) => !pageIds.has(id));
             setSelected(newSel);
-            onSelectionChange?.(newSel, filtered.filter((row) => newSel.includes(row.id)));
+            onSelectionChange?.(
+                newSel,
+                getSelectedRowsByIds(filtered, newSel),
+            );
         }
     };
 
     const handleSelectRow = (id) => {
+        const row = filtered.find((item, idx) => getRowId(item, idx) === id)
+            || data.find((item, idx) => getRowId(item, idx) === id);
+        if (!row) return;
+
         setSelected(prev => {
-            const newSel = prev.includes(id)
+            const alreadySelected = prev.includes(id);
+            if (!alreadySelected && prev.length > 0) {
+                const activeClusterKey = getSelectionClusterKey(data, prev);
+                const nextClusterKey = getRowClusterKey(row);
+                if (activeClusterKey && nextClusterKey !== activeClusterKey) {
+                    return prev;
+                }
+            }
+
+            const newSel = alreadySelected
                 ? prev.filter(Pid => Pid !== id)
                 : [...prev, id];
-            onSelectionChange?.(newSel, filtered.filter((row) => newSel.includes(row.id)));
+            onSelectionChange?.(
+                newSel,
+                getSelectedRowsByIds(filtered, newSel),
+            );
             return newSel;
         });
     };
 
-    const isAllSelected = pagedData.length > 0 && pagedData.every(r => selected.includes(r.id));
-    const isIndeterminate = pagedData.some(r => selected.includes(r.id)) && !isAllSelected;
+    const showBlockedSelectionToast = () => {
+        setToastMessage('Cannot select this row. You can only select objects from the same cluster.');
+        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = window.setTimeout(() => setToastMessage(''), 2600);
+    };
+
+    const isAllSelected = selectablePageRows.length > 0
+        && selectablePageRows.every((r, idx) => selected.includes(getRowId(r, idx)));
+    const isIndeterminate = selectablePageRows.some((r, idx) => selected.includes(getRowId(r, idx)))
+        && !isAllSelected;
 
     const handleSort = (key) => {
         if (sortBy === key) {
@@ -109,14 +125,6 @@ export default function DataTable({
     };
 
     const activeFilterCount = Object.values(filters).filter(v => v && v !== '__all__').length;
-
-    const getStatusClass = (status) => {
-        const s = String(status).toLowerCase();
-        if (['running', 'healthy', 'online', 'connected', 'active'].includes(s)) return 'badge-success';
-        if (['stopped', 'offline', 'failed', 'error'].includes(s)) return 'badge-error';
-        if (['warning', 'maintenance', 'suspended'].includes(s)) return 'badge-warning';
-        return 'badge-info';
-    };
 
     return (
         <div className="data-table-wrapper">
@@ -219,12 +227,13 @@ export default function DataTable({
                                         </div>
                                     </th>
                                 ))}
+                                {rowAction && <th className="dt-th dt-th-action">Action</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {pagedData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columns.length + (enableSelection ? 1 : 0)} className="dt-empty">
+                                    <td colSpan={columns.length + (enableSelection ? 1 : 0) + (rowAction ? 1 : 0)} className="dt-empty">
                                         <div className="dt-empty-state">
                                             <div className="dt-empty-icon">?</div>
                                             <p>No results found</p>
@@ -233,14 +242,23 @@ export default function DataTable({
                                 </tr>
                             ) : (
                                 pagedData.map((row) => {
-                                    const isSelected = selected.includes(row.id);
+                                    const rowId = getRowId(row);
+                                    const isSelected = selected.includes(rowId);
+                                    const rowClusterKey = getRowClusterKey(row);
+                                    const isSelectionBlocked = !!selectedClusterKey
+                                        && !isSelected
+                                        && rowClusterKey !== selectedClusterKey;
                                     return (
                                         <tr
-                                            key={row.id}
+                                            key={rowId}
                                             className={`dt-row ${isSelected ? 'dt-row--selected' : ''}`}
                                             onClick={() => {
                                                 if (enableSelection) {
-                                                    handleSelectRow(row.id);
+                                                    if (isSelectionBlocked) {
+                                                        showBlockedSelectionToast();
+                                                        return;
+                                                    }
+                                                    handleSelectRow(rowId);
                                                     return;
                                                 }
                                                 onRowClick?.(row);
@@ -252,7 +270,13 @@ export default function DataTable({
                                                         type="checkbox"
                                                         className="checkbox"
                                                         checked={isSelected}
-                                                        onChange={() => handleSelectRow(row.id)}
+                                                        onChange={() => {
+                                                            if (isSelectionBlocked) {
+                                                                showBlockedSelectionToast();
+                                                                return;
+                                                            }
+                                                            handleSelectRow(rowId);
+                                                        }}
                                                     />
                                                 </td>
                                             )}
@@ -267,6 +291,17 @@ export default function DataTable({
                                                     )}
                                                 </td>
                                             ))}
+                                            {rowAction && (
+                                                <td className="dt-td dt-td-action" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        className="btn-icon dt-row-action"
+                                                        title={rowAction.title || 'Run Action'}
+                                                        onClick={() => rowAction.onClick?.(row)}
+                                                    >
+                                                        {rowAction.icon}
+                                                    </button>
+                                                </td>
+                                            )}
                                         </tr>
                                     );
                                 })
@@ -279,9 +314,34 @@ export default function DataTable({
             {/* Pagination */}
             <div className="dt-pagination">
                 <div className="dt-pagination-info">
-                    Showing <span className="highlight">{filtered.length ? ((page - 1) * pageSize + 1) : 0}</span> to <span className="highlight">{Math.min(page * pageSize, filtered.length)}</span> of <span className="highlight">{filtered.length}</span> results
+                    <span className="dt-pagination-meta">
+                        <span className="dt-pagination-chip">Showing</span>
+                        <span className="dt-pagination-chip dt-pagination-chip--value">
+                            {filtered.length ? ((page - 1) * pageSize + 1) : 0}
+                            {' - '}
+                            {Math.min(page * pageSize, filtered.length)}
+                        </span>
+                        <span className="dt-pagination-chip">of</span>
+                        <span className="dt-pagination-chip dt-pagination-chip--value">{filtered.length}</span>
+                        <span className="dt-pagination-chip">results</span>
+                    </span>
                 </div>
                 <div className="dt-pagination-controls">
+                    <div className="dt-page-size">
+                        <span>Rows</span>
+                        <select
+                            className="select-field select-sm dt-page-size-select"
+                            value={pageSize}
+                            onChange={(e) => {
+                                setPageSize(Number(e.target.value));
+                                setPage(1);
+                            }}
+                        >
+                            {[8, 14, 20, 50].map((size) => (
+                                <option key={size} value={size}>{size}</option>
+                            ))}
+                        </select>
+                    </div>
                     <button
                         className="btn-icon btn-sm"
                         disabled={page <= 1}
@@ -299,6 +359,7 @@ export default function DataTable({
                     </button>
                 </div>
             </div>
+            <Toast message={toastMessage} type="error" onClose={() => setToastMessage('')} />
         </div>
     );
 }

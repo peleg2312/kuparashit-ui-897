@@ -13,6 +13,8 @@ import QtreePage from './pages/QtreePage';
 import RefhaelToolsPage from './pages/RefhaelToolsPage';
 import PricePage from './pages/PricePage';
 import HerziToolsPage from './pages/HerziToolsPage';
+import NetappUpgradePage from './pages/NetappUpgradePage';
+import NetappMultiExecPage from './pages/NetappMultiExecPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import './App.css';
@@ -120,6 +122,12 @@ export default function App() {
               } />
               <Route path="/herzi-tools" element={
                 <PermissionRoute screenId="herzitools"><HerziToolsPage /></PermissionRoute>
+              } />
+              <Route path="/netapp-upgrade" element={
+                <PermissionRoute screenId="netapp-upgrade"><NetappUpgradePage /></PermissionRoute>
+              } />
+              <Route path="/netapp-multi-exec" element={
+                <PermissionRoute screenId="netapp-multi-exec"><NetappMultiExecPage /></PermissionRoute>
               } />
 
               {/* Fallback */}
