@@ -8,8 +8,15 @@ export const refhaelApi = {
             if (file2) formData.append('file2', file2);
         }
 
-        return runApiRequest('refhael.processFiles', () => http.main.post('/refhael/process-files', formData, {
+        return runApiRequest('refhael.processFiles', () => http.main.post('/process-excels', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
+        }));
+    },
+
+    async downloadFile(fileName = '') {
+        return runApiRequest('refhael.downloadFile', () => http.main.get('/download-file', {
+            params: fileName ? { fileName } : {},
+            responseType: 'blob',
         }));
     },
 };

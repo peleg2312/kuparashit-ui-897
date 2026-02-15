@@ -7,22 +7,23 @@ export function saveSession(session) {
             user: session.user,
             authMode: session.authMode,
             permissions: session.permissions,
+            token: session.token || '',
         }),
     );
 }
 
-export function clearSession() {
-    localStorage.removeItem(SESSION_KEY);
+export function loadSession() {
+    try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        return parsed;
+    } catch {
+        return null;
+    }
 }
 
-export function normalizeAuthResponse(data, fallbackMode = 'local') {
-    if (!data?.user) return null;
-    const teams = data.user.teams || data.teams || [];
-    return {
-        user: { ...data.user, teams },
-        authMode: data.authMode || fallbackMode,
-        token: data.token || '',
-        teams,
-        permissions: data.permissions || [],
-    };
+export function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
 }

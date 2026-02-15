@@ -3,6 +3,44 @@ import { HiX, HiCheckCircle, HiXCircle, HiClock, HiRefresh } from 'react-icons/h
 import { mainApi } from '../../api';
 import './JobTracker.css';
 
+function normalizeStatusPayload(payload) {
+    const rawSteps = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(payload?.steps) ? payload.steps : []);
+
+    const steps = rawSteps.map((step, index) => ({
+        name: step?.name || `Step ${index + 1}`,
+        status: step?.status || 'pending',
+    }));
+
+    const hasFailed = steps.some((step) => step.status === 'failed');
+    const hasRunning = steps.some((step) => step.status === 'running');
+    const allSuccess = steps.length > 0 && steps.every((step) => step.status === 'success');
+
+    const status = typeof payload?.status === 'string'
+        ? payload.status
+        : (hasFailed ? 'failed' : (allSuccess ? 'success' : (hasRunning ? 'running' : 'pending')));
+
+    const finished = typeof payload?.finished === 'boolean'
+        ? payload.finished
+        : (hasFailed || allSuccess);
+
+    const progress = typeof payload?.progress === 'number'
+        ? payload.progress
+        : (steps.length
+            ? Math.round((steps.filter((step) => step.status === 'success').length / steps.length) * 100)
+            : 0);
+
+    return {
+        steps,
+        status,
+        finished,
+        progress,
+        message: typeof payload?.message === 'string' ? payload.message : '',
+        error: typeof payload?.error === 'string' ? payload.error : '',
+    };
+}
+
 export default function JobTracker({ job, onClose }) {
     const [statusByJob, setStatusByJob] = useState({});
     const [pollErrorByJob, setPollErrorByJob] = useState({});
@@ -17,11 +55,12 @@ export default function JobTracker({ job, onClose }) {
             try {
                 const response = await mainApi.getJobStatus(job.jobId);
                 if (cancelled) return;
+                const normalizedStatus = normalizeStatusPayload(response);
 
-                setStatusByJob((prev) => ({ ...prev, [job.jobId]: response }));
+                setStatusByJob((prev) => ({ ...prev, [job.jobId]: normalizedStatus }));
                 setPollErrorByJob((prev) => ({ ...prev, [job.jobId]: '' }));
 
-                if (response.finished || response.status === 'success' || response.status === 'failed') return;
+                if (normalizedStatus.finished || normalizedStatus.status === 'success' || normalizedStatus.status === 'failed') return;
             } catch (error) {
                 if (cancelled) return;
                 setPollErrorByJob((prev) => ({ ...prev, [job.jobId]: error?.message || 'Failed to fetch job status' }));
@@ -47,11 +86,7 @@ export default function JobTracker({ job, onClose }) {
     const steps = statusData?.steps || [];
     const completed = statusData?.status === 'success';
     const failed = statusData?.status === 'failed';
-    const progress = typeof statusData?.progress === 'number'
-        ? statusData.progress
-        : (steps.length
-            ? Math.round((steps.filter((step) => step.status === 'success').length / steps.length) * 100)
-            : 0);
+    const progress = typeof statusData?.progress === 'number' ? statusData.progress : 0;
 
     const getStepIcon = (status) => {
         switch (status) {
@@ -137,7 +172,7 @@ export default function JobTracker({ job, onClose }) {
                         <HiCheckCircle size={32} />
                         <div>
                             <h3>Operation Completed Successfully</h3>
-                            <p>{statusData?.message || 'All backend steps finished successfully.'}</p>
+                            <p>{statusData?.message || job?.message || 'All backend steps finished successfully.'}</p>
                         </div>
                     </div>
                 )}
@@ -147,7 +182,7 @@ export default function JobTracker({ job, onClose }) {
                         <HiXCircle size={32} />
                         <div>
                             <h3>Operation Failed</h3>
-                            <p>{statusData?.error || 'Backend reported a failure while executing the job.'}</p>
+                            <p>{statusData?.error || job?.error || 'Backend reported a failure while executing the job.'}</p>
                         </div>
                     </div>
                 )}

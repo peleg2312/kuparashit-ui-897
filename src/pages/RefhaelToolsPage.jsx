@@ -32,7 +32,13 @@ export default function RefhaelToolsPage() {
     };
 
     const handleDownload = () => {
-        createResultDownload(result?.fileName);
+        refhaelApi.downloadFile(result?.fileName)
+            .then((fileBlob) => {
+                createResultDownload(result?.fileName, fileBlob);
+            })
+            .catch(() => {
+                setError('Failed to download output file.');
+            });
     };
 
     const handleReset = () => {

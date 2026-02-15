@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import random
 import time
@@ -431,6 +432,10 @@ class LocalLoginPayload(BaseModel):
     password: str | None = None
 
 
+class AuthUploadPayload(BaseModel):
+    username: str
+
+
 class CalculatePayload(BaseModel):
     machineType: str
     size: float
@@ -535,8 +540,37 @@ def current_user_from_request(request: Request) -> dict[str, Any] | None:
     return validate_token(token)
 
 
+def parse_query_list(request: Request, keys: set[str]) -> list[str]:
+    values: list[str] = []
+    for key, value in request.query_params.multi_items():
+        if key not in keys:
+            continue
+        for item in str(value or "").replace("\n", ",").split(","):
+            normalized = item.strip()
+            if normalized:
+                values.append(normalized)
+    return values
+
+
+def parse_team_list(request: Request, teams: list[str] | None = None) -> list[str]:
+    team_list = [str(team).strip() for team in (teams or []) if str(team).strip()]
+    if team_list:
+        return team_list
+    return parse_query_list(request, {"teams", "teams[]"})
+
+
+def build_team_access_map(team_list: list[str]) -> dict[str, bool]:
+    known_teams = sorted(TEAM_PERMISSIONS.keys())
+    if not known_teams:
+        return {}
+    enabled = {str(team).strip() for team in team_list if str(team).strip()}
+    return {team: team in enabled for team in known_teams}
+
+
 PUBLIC_PATHS = {
     "/health",
+    "/login/local",
+    "/auth_upload",
     "/auth/login/local",
     "/auth/login/adfs",
     "/auth/session",
@@ -550,7 +584,7 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     path = request.url.path
-    if path in PUBLIC_PATHS:
+    if path in PUBLIC_PATHS or path.startswith("/auth_check/"):
         return await call_next(request)
 
     if not current_user_from_request(request):
@@ -786,6 +820,8 @@ def _create_job(action_label: str, payload: dict[str, Any] | None = None) -> dic
         "jobId": job_id,
         "action": action_label,
         "status": "queued",
+        "message": f"Action {action_label} request accepted. Job queued for execution.",
+        "error": "",
     }
 
 
@@ -936,6 +972,44 @@ def inventory_tree() -> dict[str, Any]:
     return INVENTORY
 
 
+@app.post("/login/local")
+def login_local_contract(payload: LocalLoginPayload, response: Response) -> dict[str, str]:
+    user = find_user_by_username_or_email(payload.username)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    provided_password = payload.password or ""
+    if not pwd_context.verify(provided_password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = issue_access_token(user)
+    set_auth_cookie(response, token)
+    return {"token": token}
+
+
+@app.post("/auth_upload")
+def login_auth_upload(payload: AuthUploadPayload, response: Response) -> dict[str, str]:
+    user = find_user_by_username_or_email(payload.username)
+    if not user:
+        user = next((item for item in USERS_DB if item["email"] == "maya@company.com"), USERS_DB[0])
+    token = issue_access_token(user)
+    set_auth_cookie(response, token)
+    return {"token": token}
+
+
+@app.get("/auth_check/{token}")
+def auth_check_contract(request: Request, token: str, teams: list[str] | None = None) -> dict[str, bool]:
+    user = validate_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    team_list = parse_team_list(request, teams)
+    if not team_list:
+        team_list = [str(team).strip() for team in user.get("teams", []) if str(team).strip()]
+
+    return build_team_access_map(team_list)
+
+
 @app.post("/auth/login/local")
 def login_local(payload: LocalLoginPayload, response: Response) -> dict[str, Any]:
     user = find_user_by_username_or_email(payload.username)
@@ -1031,14 +1105,44 @@ def get_rdms() -> list[dict[str, Any]]:
     return flatten_rdms()
 
 
+@app.get("/download/vms")
+def download_vms() -> dict[str, str]:
+    return {"content": json.dumps(flatten_vms())}
+
+
+@app.get("/download/datastores")
+def download_datastores() -> dict[str, str]:
+    return {"content": json.dumps(flatten_datastores())}
+
+
+@app.get("/download/esx")
+def download_esx() -> dict[str, str]:
+    return {"content": json.dumps(flatten_esx_hosts())}
+
+
+@app.get("/download/rdms")
+def download_rdms() -> dict[str, str]:
+    return {"content": json.dumps(flatten_rdms())}
+
+
 @app.get("/vcenters")
 def get_vcenters() -> list[str]:
+    return get_vcenter_names()
+
+
+@app.get("/vc_collector/get_vcs")
+def get_vcs_contract() -> list[str]:
     return get_vcenter_names()
 
 
 @app.get("/netapp/machines")
 def get_netapp_machines() -> list[dict[str, str]]:
     return NETAPP_MACHINES
+
+
+@app.get("/netapps")
+def get_netapps_contract() -> list[str]:
+    return [machine["name"] for machine in NETAPP_MACHINES]
 
 
 @app.get("/exch/volumes")
@@ -1101,6 +1205,63 @@ def volumes() -> list[str]:
     return [item["name"] for item in EXCH_VOLUMES]
 
 
+def normalize_site(site: str | None) -> str:
+    normalized = str(site or "").strip().lower()
+    if normalized not in {"five", "nova"}:
+        raise HTTPException(status_code=400, detail="Invalid site. Expected 'five' or 'nova'.")
+    return normalized
+
+
+@app.post("/lun/create")
+def lun_create(site: str, payload: dict[str, Any]) -> dict[str, Any]:
+    site_name = normalize_site(site)
+    server_name = str(payload.get("server_name") or "").strip()
+    db_names = [str(item).strip() for item in (payload.get("db_names") or []) if str(item).strip()]
+    lun_size = payload.get("lun_size")
+    return {
+        "message": f"LUN create request accepted for {server_name or 'unknown server'} at {site_name}.",
+        "site": site_name,
+        "server_name": server_name,
+        "db_names": db_names,
+        "lun_size": lun_size,
+        "status": "accepted",
+    }
+
+
+@app.put("/lun/expand")
+def lun_expand(site: str, payload: dict[str, Any]) -> dict[str, Any]:
+    site_name = normalize_site(site)
+    serials = [str(item).strip() for item in (payload.get("serials") or []) if str(item).strip()]
+    size_to_add = payload.get("size_to_add")
+    return {
+        "message": f"LUN expand request accepted for {len(serials)} serial(s) at {site_name}.",
+        "site": site_name,
+        "serials": serials,
+        "size_to_add": size_to_add,
+        "status": "accepted",
+    }
+
+
+@app.post("/lun/delete")
+def lun_delete(site: str, payload: dict[str, Any]) -> dict[str, Any]:
+    site_name = normalize_site(site)
+    serials = [str(item).strip() for item in (payload.get("serials") or []) if str(item).strip()]
+    return {
+        "message": f"LUN delete request accepted for {len(serials)} serial(s) at {site_name}.",
+        "site": site_name,
+        "serials": serials,
+        "status": "accepted",
+    }
+
+
+@app.get("/igroups")
+def get_igroups(site: str) -> list[str]:
+    site_name = normalize_site(site)
+    if site_name == "nova":
+        return ["NOVA_IGRP_DB01", "NOVA_IGRP_DB02", "NOVA_IGRP_EXCH01"]
+    return ["FIVE_IGRP_DB01", "FIVE_IGRP_DB02", "FIVE_IGRP_EXCH01"]
+
+
 @app.get("/aggregates")
 def aggregates() -> list[str]:
     return ["AGG-01", "AGG-02", "AGG-03", "AGG-04", "AGG-05"]
@@ -1123,6 +1284,42 @@ def clusters_by_vc(vc: str | None = None) -> list[str]:
     return sorted((INVENTORY.get(vc) or {}).keys())
 
 
+@app.get("/network/{network}/vcenter/{vcenter}/clusters")
+def network_clusters(network: str, vcenter: str) -> list[str]:
+    _ = network
+    return sorted((INVENTORY.get(vcenter) or {}).keys())
+
+
+@app.get("/network/{network}/vcenter/{vcenter}/ds_clusters")
+def network_ds_clusters(network: str, vcenter: str) -> list[str]:
+    _ = network
+    return get_ds_clusters_for_vc(vcenter)
+
+
+@app.get("/network/{network}/vcenter/{vcenter}/datatores")
+def network_datatores(network: str, vcenter: str) -> list[str]:
+    _ = network
+    return sorted(
+        [
+            item["name"]
+            for item in flatten_datastores()
+            if str(item.get("vc") or "") == vcenter and item.get("name")
+        ]
+    )
+
+
+@app.get("/network/{network}/vcenter/{vcenter}/hosts")
+def network_hosts(network: str, vcenter: str) -> list[str]:
+    _ = network
+    return sorted(
+        [
+            item["name"]
+            for item in flatten_esx_hosts()
+            if str(item.get("vc") or "") == vcenter and item.get("name")
+        ]
+    )
+
+
 @app.get("/esx/by-cluster")
 def esx_by_cluster(cluster: str | None = None) -> list[str]:
     if not cluster:
@@ -1135,7 +1332,7 @@ def esx_by_cluster(cluster: str | None = None) -> list[str]:
 
 
 @app.get("/jobs/status")
-def job_status(jobId: str) -> dict[str, Any]:
+def job_status(jobId: str, stepsOnly: bool = True) -> dict[str, Any] | list[dict[str, str]]:
     job = JOBS_STORE.get(jobId)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job {jobId} not found")
@@ -1148,7 +1345,19 @@ def job_status(jobId: str) -> dict[str, Any]:
             time.sleep(wait_ms / 1000)
         job["firstStatusServed"] = True
 
-    return _job_status_snapshot(job)
+    snapshot = _job_status_snapshot(job)
+    if stepsOnly:
+        return snapshot.get("steps", [])
+    return snapshot
+
+
+@app.get("/step_log")
+def step_log(jobId: str) -> list[dict[str, str]]:
+    job = JOBS_STORE.get(jobId)
+    if job is None:
+        return []
+    snapshot = _job_status_snapshot(job)
+    return snapshot.get("steps", [])
 
 
 @app.post("/price/calculate")
@@ -1185,6 +1394,60 @@ def price_calculate(payload: CalculatePayload) -> dict[str, Any]:
     return {"price": "0.00", "error": "Unknown machine type"}
 
 
+@app.get("/calculate-storage/netapp")
+def calculate_storage_netapp(
+    machineType: str = "NETAPP",
+    size: float = 0,
+    iops: float | None = None,
+    replicas: float | None = None,
+    srdf: bool | None = None,
+) -> dict[str, Any]:
+    payload = CalculatePayload(
+        machineType=machineType or "NETAPP",
+        size=size,
+        iops=iops,
+        replicas=replicas,
+        srdf=srdf,
+    )
+    return price_calculate(payload)
+
+
+@app.get("/calculate-storage/powermax")
+def calculate_storage_powermax(
+    machineType: str = "PMAX",
+    size: float = 0,
+    iops: float | None = None,
+    replicas: float | None = None,
+    srdf: bool | None = None,
+) -> dict[str, Any]:
+    payload = CalculatePayload(
+        machineType=machineType or "PMAX",
+        size=size,
+        iops=iops,
+        replicas=replicas,
+        srdf=srdf,
+    )
+    return price_calculate(payload)
+
+
+@app.get("/calculate-storage/powerflex")
+def calculate_storage_powerflex(
+    machineType: str = "PFLEX",
+    size: float = 0,
+    iops: float | None = None,
+    replicas: float | None = None,
+    srdf: bool | None = None,
+) -> dict[str, Any]:
+    payload = CalculatePayload(
+        machineType=machineType or "PFLEX",
+        size=size,
+        iops=iops,
+        replicas=replicas,
+        srdf=srdf,
+    )
+    return price_calculate(payload)
+
+
 @app.post("/refhael/process-files")
 def process_files(
     file1: UploadFile = File(...),
@@ -1197,6 +1460,25 @@ def process_files(
         "downloadUrl": "#demo-download",
         "fileName": f"result_{int(datetime.now().timestamp())}.xlsx",
     }
+
+
+@app.post("/process-excels")
+def process_excels_contract(
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(...),
+) -> dict[str, Any]:
+    return process_files(file1=file1, file2=file2, note=None)
+
+
+@app.get("/download-file")
+def download_file_contract(fileName: str | None = None) -> Response:
+    safe_file_name = str(fileName or f"result_{int(datetime.now().timestamp())}.txt").strip() or "result.txt"
+    content = f"Generated file: {safe_file_name}\nGenerated at: {now_iso()}\n"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{safe_file_name}"'},
+    )
 
 
 HERZI_RESPONSES = {
@@ -1228,6 +1510,44 @@ HERZI_RESPONSES = {
 }
 
 
+HERZI_CONTRACT_HANDLERS = {
+    "/unused_luns": HERZI_RESPONSES["/herzi/unused-luns"],
+    "/vc_data_from_naa": HERZI_RESPONSES["/herzi/vc-info"],
+    "/get_vm_or_ds_information": HERZI_RESPONSES["/herzi/vm-information"],
+    "/naa_to_tdev": HERZI_RESPONSES["/herzi/naa-mapping"],
+    "/convert_pwwn": HERZI_RESPONSES["/herzi/change-pwwn"],
+    "/pwwn_to_esx": HERZI_RESPONSES["/herzi/esx-pwwn"],
+    "/get_naa_information": HERZI_RESPONSES["/herzi/naa-lookup"],
+    "/get_lun_or_vol_information": HERZI_RESPONSES["/herzi/lun-volume-information"],
+}
+
+
+def _run_herzi_contract_handler(request: Request) -> str | list[dict[str, str]]:
+    handler = HERZI_CONTRACT_HANDLERS.get(request.url.path)
+    if handler is None:
+        return "No data found"
+
+    inputs = parse_query_list(request, {"input", "input[]"})
+    if not inputs:
+        return "No data found"
+
+    if len(inputs) == 1:
+        return handler(inputs[0])
+    return [{"item": item, "result": handler(item)} for item in inputs]
+
+
+@app.get("/unused_luns")
+@app.get("/vc_data_from_naa")
+@app.get("/get_vm_or_ds_information")
+@app.get("/naa_to_tdev")
+@app.get("/convert_pwwn")
+@app.get("/pwwn_to_esx")
+@app.get("/get_naa_information")
+@app.get("/get_lun_or_vol_information")
+def herzi_contract_route(request: Request) -> str | list[dict[str, str]]:
+    return _run_herzi_contract_handler(request)
+
+
 @app.post("/herzi/{tool_name:path}")
 def herzi_tools(tool_name: str, payload: HerziPayload) -> str | list[dict[str, str]]:
     endpoint = f"/herzi/{tool_name}"
@@ -1243,6 +1563,75 @@ def herzi_tools(tool_name: str, payload: HerziPayload) -> str | list[dict[str, s
     if not query:
         return "No data found"
     return handler(query)
+
+
+@app.get("/multi_command")
+def multi_command_contract(
+    request: Request,
+    user: str = "admin",
+    password: str = "",
+    command: str = "",
+    hosts: list[str] | None = None,
+) -> dict[str, str]:
+    _ = password
+    host_list = [str(host).strip() for host in (hosts or []) if str(host).strip()]
+    if not host_list:
+        host_list = parse_query_list(request, {"hosts", "hosts[]"})
+
+    safe_user = str(user or "admin").strip() or "admin"
+    safe_command = str(command or "version").strip() or "version"
+    return {
+        host: build_demo_output_text(safe_command, host, safe_user)
+        for host in host_list
+    }
+
+
+@app.websocket("/ws/ssh")
+async def ws_ssh_contract(websocket: WebSocket):
+    await websocket.accept()
+    session = {
+        "connected": False,
+        "host": "",
+        "username": "",
+    }
+    try:
+        while True:
+            raw_message = await websocket.receive_text()
+            message = str(raw_message or "").strip()
+
+            if not message:
+                await websocket.send_text("Empty message received.")
+                continue
+
+            if not session["connected"]:
+                try:
+                    payload = json.loads(message)
+                except json.JSONDecodeError:
+                    await websocket.send_text("First message must be JSON with host, username, password.")
+                    continue
+
+                if not isinstance(payload, dict):
+                    await websocket.send_text("Invalid auth payload.")
+                    continue
+
+                host = str(payload.get("host") or "").strip()
+                username = str(payload.get("username") or "").strip()
+                password = str(payload.get("password") or "").strip()
+
+                if not host or not username or not password:
+                    await websocket.send_text("Missing host, username, or password.")
+                    continue
+
+                session["connected"] = True
+                session["host"] = host
+                session["username"] = username
+                await websocket.send_text(f"Connected to {host} as {username}.")
+                continue
+
+            await asyncio.sleep(random.uniform(0.08, 0.2))
+            await websocket.send_text(build_demo_output_text(message, session["host"], session["username"]))
+    except WebSocketDisconnect:
+        return
 
 
 @app.websocket("/ws/demo/netapp")
@@ -1492,3 +1881,18 @@ async def ws_netapp_demo(websocket: WebSocket):
 @app.post("/{path:path}")
 def generic_actions(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     return _create_job(f"/{path}", payload)
+
+
+@app.put("/{path:path}")
+def generic_actions_put(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return _create_job(f"/{path}", payload)
+
+
+@app.patch("/{path:path}")
+def generic_actions_patch(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return _create_job(f"/{path}", payload)
+
+
+@app.delete("/{path:path}")
+def generic_actions_delete(path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    return _create_job(f"/{path}", payload or {})

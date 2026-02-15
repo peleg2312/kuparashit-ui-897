@@ -1,7 +1,7 @@
 import {
     HiServer, HiDatabase, HiChip, HiDesktopComputer,
     HiSwitchHorizontal, HiCollection, HiUpload,
-    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt
+    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch
 } from 'react-icons/hi';
 
 const screens = [
@@ -14,6 +14,7 @@ const screens = [
     // Additional screens
     { id: 'exch', label: 'EXCH', path: '/exch', icon: HiSwitchHorizontal, group: 'storage', groupLabel: 'Storage Management' },
     { id: 'qtree', label: 'QTREE', path: '/qtree', icon: HiCollection, group: 'storage', groupLabel: 'Storage Management' },
+    { id: 'troubleshooter', label: 'Troubleshooter', path: '/troubleshooter', icon: HiSearch, group: 'storage', groupLabel: 'Storage Management' },
 
     // Tools
     { id: 'refhael', label: 'Refhael Tools', path: '/refhael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },

@@ -5,3 +5,4 @@ export { exchApi } from './exch';
 export { herziApi } from './herzi';
 export { priceApi } from './price';
 export { refhaelApi } from './refhael';
+export { troubleshooterApi } from './troubleshooter';

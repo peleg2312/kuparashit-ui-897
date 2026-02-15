@@ -20,14 +20,37 @@ function getCurrentScreenId(pathname) {
 }
 
 export function TeamProvider({ children }) {
-    const { user } = useAuth();
+    const { user, permissions } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
+    const permissionTeam = useMemo(() => {
+        const permissionSet = new Set((permissions || []).map((item) => String(item)));
+        const allowsAll = permissionSet.has('*') || permissionSet.has('all');
+        const allowedScreens = allowsAll
+            ? screens.map((screen) => screen.id)
+            : screens
+                .map((screen) => screen.id)
+                .filter((screenId) => permissionSet.has(screenId));
+
+        if (!allowedScreens.length) return null;
+
+        return {
+            id: 'PERMISSIONS',
+            name: 'Permissions',
+            description: 'Permission based workspace',
+            screens: allowedScreens,
+            color: '#1f78ff',
+            image: null,
+        };
+    }, [permissions]);
+
     const userTeams = useMemo(() => {
         if (!user) return [];
-        return user.teams.map((teamId) => teams[teamId]).filter(Boolean);
-    }, [user]);
+        const mappedTeams = user.teams.map((teamId) => teams[teamId]).filter(Boolean);
+        if (mappedTeams.length) return mappedTeams;
+        return permissionTeam ? [permissionTeam] : [];
+    }, [user, permissionTeam]);
 
     const [currentTeamId, setCurrentTeamId] = useState(null);
 
@@ -38,7 +61,7 @@ export function TeamProvider({ children }) {
     }, [userTeams, currentTeamId]);
 
     const switchTeam = (teamId) => {
-        const team = teams[teamId];
+        const team = userTeams.find((item) => item.id === teamId);
         if (!team) return;
 
         setCurrentTeamId(team.id);
@@ -51,6 +74,10 @@ export function TeamProvider({ children }) {
 
     const isAllowed = (screenId) => {
         if (!currentTeam) return false;
+        if (currentTeam.id === 'PERMISSIONS') {
+            if (currentTeam.screens.includes('*')) return true;
+            return currentTeam.screens.includes(screenId);
+        }
         return isScreenAllowed(currentTeam.id, screenId);
     };
 

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { HiLightningBolt, HiServer } from 'react-icons/hi';
+import { mainApi } from '../api';
 import MachineMultiSelectDropdown from '../components/Netapp/MachineMultiSelectDropdown';
 import TerminalPanel from '../components/Netapp/TerminalPanel';
-import { usePersistentNetappSocket } from '../hooks/usePersistentNetappSocket';
 import { useNetappMachines } from '../hooks/useNetappMachines';
 import { createTerminalLine } from '../utils/netappTerminal';
 import './NetappOperations.css';
@@ -14,6 +14,12 @@ const DEFAULT_CREDENTIALS = {
 
 const DEFAULT_COMMAND = 'version';
 
+function normalizeHostOutput(value) {
+    if (typeof value === 'string') return value;
+    if (value == null) return '';
+    return JSON.stringify(value, null, 2);
+}
+
 export default function NetappMultiExecPage() {
     const [selectedMachines, setSelectedMachines] = useState([]);
     const [focusedMachine, setFocusedMachine] = useState('');
@@ -23,6 +29,7 @@ export default function NetappMultiExecPage() {
     const [command, setCommand] = useState(DEFAULT_COMMAND);
     const [machineDropdownOpen, setMachineDropdownOpen] = useState(false);
     const [machineSearch, setMachineSearch] = useState('');
+    const [running, setRunning] = useState(false);
 
     const appendSystemLine = (text, tone = 'default') => (
         setSystemLogs((prev) => [...prev, createTerminalLine(text, tone)])
@@ -40,58 +47,6 @@ export default function NetappMultiExecPage() {
     };
 
     const machines = useNetappMachines((errorMessage) => appendSystemLine(errorMessage, 'error'));
-
-    const handleCommandDone = (payload) => {
-        appendMachineLine(
-            payload.machine,
-            `Completed with exit code ${payload.exitCode}.`,
-            payload.exitCode === 0 ? 'success' : 'error',
-        );
-    };
-
-    const handleBatchDone = (payload) => {
-        appendSystemLine(
-            `Batch ${payload.batchId} finished. Success: ${payload.successCount}, Failed: ${payload.failedCount}.`,
-            payload.failedCount ? 'warning' : 'success',
-        );
-    };
-
-    const onSocketMessage = (payload) => {
-        try {
-            switch (payload?.type) {
-                case 'hello':
-                    appendSystemLine(`[ws] ${payload.message || 'Connection established.'}`, 'info');
-                    break;
-                case 'command_start':
-                    appendMachineLine(payload.machine, `Running command: ${payload.command}`, 'info');
-                    break;
-                case 'command_output':
-                    appendMachineLine(payload.machine, payload.line || '', 'default');
-                    break;
-                case 'command_done':
-                    handleCommandDone(payload);
-                    break;
-                case 'multi_start':
-                    appendSystemLine(
-                        `Batch ${payload.batchId} started on ${payload.machines.length} machine(s).`,
-                        'info',
-                    );
-                    break;
-                case 'multi_done':
-                    handleBatchDone(payload);
-                    break;
-                case 'error':
-                    appendSystemLine(`[error] ${payload.message || 'Unexpected backend error.'}`, 'error');
-                    break;
-                default:
-                    break;
-            }
-        } catch (error) {
-            appendSystemLine(`[error] ${error?.message || 'Failed to process websocket payload.'}`, 'error');
-        }
-    };
-
-    const { connectionState, isConnected, sendMessage } = usePersistentNetappSocket(onSocketMessage);
 
     const activeMachine = useMemo(() => {
         if (!selectedMachines.length) return '';
@@ -133,30 +88,36 @@ export default function NetappMultiExecPage() {
         return true;
     };
 
-    const runMultiExec = () => {
+    const runMultiExec = async () => {
         if (!validateExecutionInput()) return;
 
-        const sent = sendMessage({
-            type: 'run_multi',
-            batchId: `batch-${Date.now()}`,
-            command,
-            machines: selectedMachines,
-            username: credentials.username,
-            password: credentials.password,
-        });
+        setRunning(true);
+        appendSystemLine(`Running command on ${selectedMachines.length} machine(s)...`, 'info');
 
-        if (!sent) {
-            appendSystemLine('Websocket is not connected. Waiting for reconnect...', 'warning');
-            return;
+        try {
+            const response = await mainApi.runMultiCommand({
+                user: credentials.username,
+                password: credentials.password,
+                command,
+                hosts: selectedMachines,
+            });
+
+            if (!response || typeof response !== 'object') {
+                appendSystemLine('No output returned from backend.', 'warning');
+                return;
+            }
+
+            Object.entries(response).forEach(([host, output]) => {
+                appendMachineLine(host, normalizeHostOutput(output), 'default');
+                appendMachineLine(host, 'Completed.', 'success');
+            });
+
+            appendSystemLine('Multi command completed.', 'success');
+        } catch (error) {
+            appendSystemLine(`[error] ${error?.message || 'Multi command failed.'}`, 'error');
+        } finally {
+            setRunning(false);
         }
-
-        const primaryMachine = activeMachine || selectedMachines[0];
-        sendMessage({
-            type: 'connect',
-            machine: primaryMachine,
-            username: credentials.username,
-            password: credentials.password,
-        });
     };
 
     return (
@@ -167,7 +128,7 @@ export default function NetappMultiExecPage() {
                     <p className="page-subtitle">Execute one command on multiple NetApp machines with per-machine output.</p>
                 </div>
                 <div className="page-actions">
-                    <span className={`badge ${isConnected ? 'badge-success' : 'badge-warning'}`}>WS {connectionState}</span>
+                    <span className={`badge ${running ? 'badge-warning' : 'badge-success'}`}>{running ? 'Running' : 'Idle'}</span>
                     <span className="badge badge-accent">{selectedMachines.length} selected</span>
                 </div>
             </div>
@@ -227,9 +188,9 @@ export default function NetappMultiExecPage() {
                         </div>
 
                         <div className="netapp-button-grid">
-                            <button type="button" className="btn btn-primary" onClick={runMultiExec}>
+                            <button type="button" className="btn btn-primary" onClick={runMultiExec} disabled={running}>
                                 <HiLightningBolt size={15} />
-                                Run Command
+                                {running ? 'Running...' : 'Run Command'}
                             </button>
                         </div>
                     </section>

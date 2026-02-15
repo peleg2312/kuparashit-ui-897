@@ -9,6 +9,7 @@ import {
     actionButtonStyleMap,
     actionIconMap,
     buildActionInitialValues,
+    normalizeActionPayload,
     resolveActionApi,
     resolveActionEndpoint,
 } from '../../utils/actionHandlers';
@@ -55,6 +56,7 @@ export default function DashboardScreen({
 }) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [activeAction, setActiveAction] = useState(null);
     const [actionInitialValues, setActionInitialValues] = useState({});
     const [job, setJob] = useState(null);
@@ -68,10 +70,18 @@ export default function DashboardScreen({
 
     const loadData = useCallback(() => {
         setLoading(true);
-        fetchData().then((rows) => {
-            setData(rows);
-            setLoading(false);
-        });
+        setLoadError('');
+        fetchData()
+            .then((rows) => {
+                setData(Array.isArray(rows) ? rows : []);
+            })
+            .catch((error) => {
+                setData([]);
+                setLoadError(error?.message || 'Failed to load table data.');
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, [fetchData]);
 
     useEffect(() => {
@@ -89,14 +99,27 @@ export default function DashboardScreen({
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];
         const endpoint = resolveActionEndpoint(action, values);
-        const payload = activeAction === 'delete'
-            ? { ...values, selectedIds }
-            : values;
+        const extraPayload = activeAction === 'delete' ? { selectedIds } : {};
+        const payload = normalizeActionPayload(action, values, extraPayload);
         const api = resolveActionApi(action, apiService);
-        const result = await api.executeAction(endpoint, payload);
+        const result = await api.executeAction(endpoint, payload, {
+            method: action?.method || 'post',
+            network: values?.network || '',
+            site: values?.site || '',
+        });
+        if (result?.error) {
+            throw new Error(result.error);
+        }
+        if (!result?.jobId) {
+            throw new Error(result?.message || 'Action response is missing jobId');
+        }
         setActiveAction(null);
         setActionInitialValues({});
-        setJob(result);
+        setJob({
+            ...result,
+            message: result?.message || '',
+            error: result?.error || '',
+        });
         setSelectedIds([]);
         setSelectedRows([]);
     };
@@ -151,6 +174,21 @@ export default function DashboardScreen({
             </div>
 
             <div className="page-content">
+                {!!loadError && (
+                    <div
+                        style={{
+                            marginBottom: 12,
+                            border: '1px solid var(--error)',
+                            color: 'var(--error)',
+                            background: 'color-mix(in srgb, var(--error), transparent 92%)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '10px 12px',
+                            fontSize: '0.9rem',
+                        }}
+                    >
+                        {loadError}
+                    </div>
+                )}
                 <DataTable
                     columns={columns}
                     data={data}

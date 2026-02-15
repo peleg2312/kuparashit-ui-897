@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_CONFIG } from '../api/client';
 
 const RECONNECT_DELAY_MS = 1500;
-const DEFAULT_WS_PATH = '/ws/demo/netapp';
+const DEFAULT_WS_PATH = '/ws/ssh';
 
 function resolveWebSocketUrl(path) {
     const base = new URL(API_CONFIG.mainBaseUrl);
@@ -98,7 +98,11 @@ export function usePersistentNetappSocket(onMessage, wsPath = DEFAULT_WS_PATH) {
             return false;
         }
         try {
-            socket.send(JSON.stringify(payload));
+            if (typeof payload === 'string') {
+                socket.send(payload);
+            } else {
+                socket.send(JSON.stringify(payload));
+            }
         } catch {
             emitMessage({
                 type: 'error',
@@ -110,20 +114,15 @@ export function usePersistentNetappSocket(onMessage, wsPath = DEFAULT_WS_PATH) {
     }, [emitMessage]);
 
     const connectSession = useCallback((credentials) => (
-        sendMessage({
-            type: 'auth',
+        sendMessage(JSON.stringify({
+            host: credentials?.machine || credentials?.host || '',
             username: credentials?.username || '',
             password: credentials?.password || '',
-            machine: credentials?.machine || '',
-        })
+        }))
     ), [sendMessage]);
 
-    const sendCommand = useCallback((command, machine = '') => (
-        sendMessage({
-            type: 'command',
-            command,
-            machine,
-        })
+    const sendCommand = useCallback((command) => (
+        sendMessage(String(command || '').trim())
     ), [sendMessage]);
 
     return {

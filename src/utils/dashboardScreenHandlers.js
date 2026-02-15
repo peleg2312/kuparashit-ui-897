@@ -1,8 +1,11 @@
 export const herziQueryByScreen = {
-    vms: { endpoint: '/herzi/vm-lookup', getInput: (row) => row.name },
-    ds: { endpoint: '/herzi/ds-usage', getInput: (row) => row.name },
-    rdm: { endpoint: '/herzi/naa-lookup', getInput: (row) => row.naa },
-    esx: { endpoint: '/herzi/vc-info', getInput: (row) => row.vc },
+    vms: { endpoint: '/get_vm_or_ds_information', getInput: (row) => row.name },
+    ds: { endpoint: '/get_vm_or_ds_information', getInput: (row) => row.name },
+    rdm: { endpoint: '/get_naa_information', getInput: (row) => row.naa },
+    esx: {
+        endpoint: '/pwwn_to_esx',
+        getInput: (row) => (Array.isArray(row.pwwns) ? row.pwwns[0] : row.name),
+    },
 };
 
 export function formatHerziResult(result) {

@@ -118,7 +118,8 @@ export default function NetappUpgradePage() {
     };
 
     const handleResponsePayload = (payload) => {
-        appendTerminalLine(payload.output || payload.message || '', 'default');
+        const text = payload.output || payload.message || payload.raw || '';
+        appendTerminalLine(text, 'default');
         markPendingCommandComplete('done');
         advanceIfNeeded();
     };
@@ -152,6 +153,9 @@ export default function NetappUpgradePage() {
                     handleSessionPayload(payload);
                     break;
                 case 'response':
+                    handleResponsePayload(payload);
+                    break;
+                case 'message':
                     handleResponsePayload(payload);
                     break;
                 // Backward compatibility with older websocket payload shape.
@@ -215,7 +219,10 @@ export default function NetappUpgradePage() {
         });
         if (!sent) {
             appendTerminalLine('Websocket is not connected. Waiting for reconnect...', 'warning');
+            return;
         }
+        setSessionInfo({ connected: true, machine: selectedMachine });
+        appendTerminalLine(`[session] Connected request sent for ${selectedMachine}.`, 'info');
     };
 
     const runNextCommand = () => {

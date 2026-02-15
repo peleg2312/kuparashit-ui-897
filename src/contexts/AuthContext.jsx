@@ -1,9 +1,93 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
+import teams from '../config/teams';
 import { authApi } from '../api';
-import { clearSession, normalizeAuthResponse, saveSession } from '../utils/authHandlers';
+import { clearSession, loadSession, saveSession } from '../utils/authHandlers';
 
 const AuthContext = createContext(null);
+
+function parsePermissionPayload(payload) {
+    const parsed = {
+        map: {},
+        permissions: [],
+        teams: [],
+    };
+
+    if (Array.isArray(payload)) {
+        parsed.permissions = payload.map((item) => String(item));
+        return parsed;
+    }
+
+    if (!payload || typeof payload !== 'object') {
+        return parsed;
+    }
+
+    if (Array.isArray(payload.teams)) {
+        parsed.teams = payload.teams.map((team) => String(team));
+    }
+
+    if (Array.isArray(payload.permissions)) {
+        parsed.permissions = payload.permissions.map((permission) => String(permission));
+        return parsed;
+    }
+
+    const mapCandidate = (
+        payload.permissions && typeof payload.permissions === 'object' && !Array.isArray(payload.permissions)
+            ? payload.permissions
+            : (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+                ? payload.data
+                : payload)
+    );
+
+    if (mapCandidate && typeof mapCandidate === 'object' && !Array.isArray(mapCandidate)) {
+        const values = Object.values(mapCandidate);
+        const isBooleanMap = values.length > 0 && values.every((value) => typeof value === 'boolean');
+        if (isBooleanMap) {
+            parsed.map = mapCandidate;
+            parsed.permissions = Object.entries(mapCandidate)
+                .filter(([, enabled]) => !!enabled)
+                .map(([name]) => String(name));
+            return parsed;
+        }
+    }
+
+    return parsed;
+}
+
+function buildPermissionTeams(permissionMap, fallbackTeams = []) {
+    const permissionKeys = Object.entries(permissionMap || {})
+        .filter(([, enabled]) => !!enabled)
+        .map(([name]) => String(name));
+
+    const knownTeamIds = new Set(Object.keys(teams));
+    const mappedTeams = permissionKeys.filter((name) => knownTeamIds.has(name));
+    if (mappedTeams.length) return mappedTeams;
+
+    if (Array.isArray(fallbackTeams) && fallbackTeams.length) {
+        const filteredFallback = fallbackTeams
+            .map((team) => String(team))
+            .filter((team) => knownTeamIds.has(team));
+        if (filteredFallback.length) return filteredFallback;
+    }
+
+    return [];
+}
+
+function buildSessionFromToken({ token, username, authMode, parsedPermissions, fallbackTeams = [] }) {
+    const userTeams = buildPermissionTeams(parsedPermissions.map, [...(parsedPermissions.teams || []), ...fallbackTeams]);
+    const safeUsername = String(username || 'user').trim() || 'user';
+
+    return {
+        token,
+        authMode: authMode || 'local',
+        permissions: parsedPermissions.permissions || [],
+        user: {
+            id: safeUsername,
+            name: safeUsername,
+            teams: userTeams,
+        },
+    };
+}
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -15,11 +99,20 @@ export function AuthProvider({ children }) {
 
     const applyAuthSession = (sessionData) => {
         setUser(sessionData.user);
-        setAuthMode(sessionData.authMode);
+        setAuthMode(sessionData.authMode || 'local');
         setPermissions(sessionData.permissions || []);
         setToken(sessionData.token || '');
         setIsAuthenticated(true);
         saveSession(sessionData);
+    };
+
+    const clearAuthState = () => {
+        setUser(null);
+        setAuthMode('local');
+        setPermissions([]);
+        setToken('');
+        setIsAuthenticated(false);
+        clearSession();
     };
 
     useEffect(() => {
@@ -27,21 +120,33 @@ export function AuthProvider({ children }) {
 
         const bootstrap = async () => {
             try {
-                const sessionFromCookie = await authApi.getSession();
-                const normalized = normalizeAuthResponse(sessionFromCookie, 'cookie');
-
-                if (normalized?.user && mounted) {
-                    const permissionData = await authApi.getPermissions(normalized.teams);
-                    applyAuthSession({
-                        ...normalized,
-                        user: { ...normalized.user, teams: permissionData.teams || normalized.teams },
-                        permissions: permissionData.permissions || normalized.permissions,
-                    });
-                } else if (mounted) {
-                    clearSession();
+                const stored = loadSession();
+                const storedToken = String(stored?.token || '').trim();
+                if (!storedToken) {
+                    if (mounted) clearAuthState();
+                    return;
                 }
+
+                const permissionPayload = await authApi.getPermissions(storedToken, stored?.user?.teams || []);
+                const parsedPermissions = parsePermissionPayload(permissionPayload);
+                if (!mounted) return;
+
+                const restoredSession = buildSessionFromToken({
+                    token: storedToken,
+                    username: stored?.user?.name || stored?.user?.id || 'user',
+                    authMode: stored?.authMode || 'local',
+                    parsedPermissions,
+                    fallbackTeams: stored?.user?.teams || [],
+                });
+
+                if (restoredSession.user?.teams?.length || restoredSession.permissions?.length) {
+                    applyAuthSession(restoredSession);
+                    return;
+                }
+
+                clearAuthState();
             } catch {
-                if (mounted) clearSession();
+                if (mounted) clearAuthState();
             } finally {
                 if (mounted) setIsLoading(false);
             }
@@ -53,40 +158,46 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
-    const login = async (apiCall, fallbackMode) => {
-        const response = await apiCall();
-        const normalized = normalizeAuthResponse(response, fallbackMode);
-        if (!normalized?.user) {
-            throw new Error('Invalid auth response');
+    const login = async (apiCall, fallbackMode, usernameHint) => {
+        const loginResponse = await apiCall();
+        const nextToken = String(loginResponse?.token || '').trim();
+
+        if (nextToken) {
+            const permissionPayload = await authApi.getPermissions(nextToken, []);
+            const parsedPermissions = parsePermissionPayload(permissionPayload);
+            const nextSession = buildSessionFromToken({
+                token: nextToken,
+                username: usernameHint,
+                authMode: fallbackMode,
+                parsedPermissions,
+            });
+
+            if (!nextSession.user?.teams?.length && !nextSession.permissions?.length) {
+                throw new Error('No permissions returned by auth_check');
+            }
+
+            applyAuthSession(nextSession);
+            return nextSession.user;
         }
 
-        const permissionData = await authApi.getPermissions(normalized.teams);
-        const finalSession = {
-            ...normalized,
-            user: { ...normalized.user, teams: permissionData.teams || normalized.teams },
-            permissions: permissionData.permissions || normalized.permissions,
-        };
-
-        applyAuthSession(finalSession);
-        return finalSession.user;
+        throw new Error('Invalid auth response: token is missing');
     };
 
-    const loginLocal = async ({ username, password }) =>
-        login(() => authApi.loginLocal({ username, password }), 'local');
+    const loginLocal = async ({ username, password }) => (
+        login(() => authApi.loginLocal({ username, password }), 'local', username)
+    );
 
-    const loginAdfs = async () =>
-        login(() => authApi.loginAdfs(), 'adfs');
+    const loginAdfs = async () => (
+        login(() => authApi.loginAdfs({ username: 'adfs-user' }), 'adfs', 'ADFS User')
+    );
 
     const logout = async () => {
         try {
             await authApi.logout();
+        } catch {
+            // Clear local state even if backend logout fails.
         } finally {
-            setUser(null);
-            setAuthMode('local');
-            setPermissions([]);
-            setToken('');
-            setIsAuthenticated(false);
-            clearSession();
+            clearAuthState();
         }
     };
 

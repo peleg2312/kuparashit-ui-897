@@ -10,6 +10,7 @@ import ESXPage from './pages/Dashboard/ESXPage';
 import VMSPage from './pages/Dashboard/VMSPage';
 import ExchPage from './pages/ExchPage';
 import QtreePage from './pages/QtreePage';
+import TroubleshooterPage from './pages/TroubleshooterPage';
 import RefhaelToolsPage from './pages/RefhaelToolsPage';
 import PricePage from './pages/PricePage';
 import HerziToolsPage from './pages/HerziToolsPage';
@@ -111,6 +112,9 @@ export default function App() {
               } />
               <Route path="/qtree" element={
                 <PermissionRoute screenId="qtree"><QtreePage /></PermissionRoute>
+              } />
+              <Route path="/troubleshooter" element={
+                <PermissionRoute screenId="troubleshooter"><TroubleshooterPage /></PermissionRoute>
               } />
 
               {/* Tools */}

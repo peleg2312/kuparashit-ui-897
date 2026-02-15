@@ -21,7 +21,8 @@ function asArray(value) {
 }
 
 function normalizeOptions(options = []) {
-    return options
+    const list = Array.isArray(options) ? options : [];
+    return list
         .map((option) => {
             if (option && typeof option === 'object') {
                 const value = option.value ?? option.label;
@@ -41,39 +42,111 @@ function uniqueValues(values) {
     return [...new Set(values.filter((value) => !isEmptyValue(value)))];
 }
 
-export default function ActionModal({ action, initialValues = {}, onClose, onSubmit }) {
-    const [values, setValues] = useState(initialValues);
+function getSourceTemplateKeys(source = '') {
+    return (String(source || '').match(/\{([^}]+)\}/g) || [])
+        .map((token) => token.replace(/[{}]/g, '').trim())
+        .filter(Boolean);
+}
+
+function buildDropdownDependencyKey(action, values) {
+    if (!action?.params?.length) return '';
+
+    return action.params
+        .filter((param) => param.type === 'dropdown-api')
+        .map((param) => {
+            if (!isParamVisible(param, values)) return `${param.name}:hidden`;
+
+            const dependencyKeys = new Set(asArray(param.dependsOn));
+            if (param.query && typeof param.query === 'object') {
+                Object.values(param.query).forEach((valueKey) => {
+                    if (valueKey) dependencyKeys.add(String(valueKey));
+                });
+            }
+            getSourceTemplateKeys(param.source).forEach((key) => dependencyKeys.add(key));
+
+            const snapshot = [...dependencyKeys]
+                .filter(Boolean)
+                .sort()
+                .map((key) => `${key}=${JSON.stringify(values?.[key] ?? '')}`)
+                .join('|');
+
+            return `${param.name}:${snapshot}`;
+        })
+        .join('||');
+}
+
+function buildInitialValues(action, initialValues = {}) {
+    const base = { ...(initialValues || {}) };
+    if (!action?.params?.length) return base;
+
+    action.params.forEach((param) => {
+        if (!isEmptyValue(base[param.name])) return;
+
+        if (Object.prototype.hasOwnProperty.call(param, 'defaultValue')) {
+            base[param.name] = param.defaultValue;
+            return;
+        }
+
+        if (param.type === 'dropdown') {
+            const options = normalizeOptions(param.options || []);
+            if (options.length === 1) {
+                base[param.name] = options[0].value;
+            }
+        }
+    });
+
+    return base;
+}
+
+export default function ActionModal({ action, initialValues, onClose, onSubmit }) {
+    const [values, setValues] = useState(() => buildInitialValues(action, initialValues));
     const [dropdownOptions, setDropdownOptions] = useState({});
     const [errors, setErrors] = useState({});
+    const [submitError, setSubmitError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [openDropdown, setOpenDropdown] = useState('');
     const [searchByField, setSearchByField] = useState({});
     const [menuLayoutByField, setMenuLayoutByField] = useState({});
     const dropdownRefs = useRef({});
+    const dropdownValuesRef = useRef(values);
+    const dropdownDependencyKey = useMemo(
+        () => buildDropdownDependencyKey(action, values),
+        [action, values],
+    );
 
     useEffect(() => {
-        setValues(initialValues || {});
+        dropdownValuesRef.current = values;
+    }, [values]);
+
+    useEffect(() => {
+        setValues(buildInitialValues(action, initialValues));
         setDropdownOptions({});
         setErrors({});
+        setSubmitError('');
         setOpenDropdown('');
         setSearchByField({});
         setMenuLayoutByField({});
     }, [initialValues, action]);
 
     useEffect(() => {
-        if (!action) return;
+        if (!action) return undefined;
 
-        const run = async () => {
+        let cancelled = false;
+        const timerId = window.setTimeout(async () => {
             try {
-                const loadedOptions = await loadDropdownOptions(action, values);
+                const loadedOptions = await loadDropdownOptions(action, dropdownValuesRef.current);
+                if (cancelled) return;
                 setDropdownOptions((prev) => ({ ...prev, ...loadedOptions }));
             } catch {
                 // Keep previously loaded options if one request fails.
             }
-        };
+        }, 120);
 
-        run();
-    }, [action, values]);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timerId);
+        };
+    }, [action, dropdownDependencyKey]);
 
     useEffect(() => {
         if (!openDropdown) return undefined;
@@ -149,6 +222,7 @@ export default function ActionModal({ action, initialValues = {}, onClose, onSub
     const validate = () => {
         const nextErrors = validateActionValues(action, values);
         setErrors(nextErrors);
+        setSubmitError('');
         return Object.keys(nextErrors).length === 0;
     };
 
@@ -157,6 +231,9 @@ export default function ActionModal({ action, initialValues = {}, onClose, onSub
         setSubmitting(true);
         try {
             await onSubmit(values);
+            setSubmitError('');
+        } catch (error) {
+            setSubmitError(error?.message || 'Action request failed');
         } finally {
             setSubmitting(false);
         }
@@ -384,6 +461,13 @@ export default function ActionModal({ action, initialValues = {}, onClose, onSub
                             )}
                         </div>
                     ))}
+
+                    {submitError && (
+                        <span className="field-error">
+                            <HiExclamationCircle size={14} />
+                            {submitError}
+                        </span>
+                    )}
                 </div>
 
                 <div className="modal-footer">

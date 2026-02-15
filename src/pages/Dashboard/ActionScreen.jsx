@@ -2,7 +2,13 @@ import { useState } from 'react';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
-import { actionCardColorMap, actionIconMap, resolveActionApi, resolveActionEndpoint } from '../../utils/actionHandlers';
+import {
+    actionCardColorMap,
+    actionIconMap,
+    normalizeActionPayload,
+    resolveActionApi,
+    resolveActionEndpoint,
+} from '../../utils/actionHandlers';
 import './ActionScreen.css';
 
 export default function ActionScreen({ screenId, title, subtitle, apiService }) {
@@ -15,13 +21,28 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
         const action = actions[activeAction];
         const endpoint = resolveActionEndpoint(action, values);
         const api = resolveActionApi(action, apiService);
-        const result = await api.executeAction(endpoint, values);
+        const payload = normalizeActionPayload(action, values);
+        const result = await api.executeAction(endpoint, payload, {
+            method: action?.method || 'post',
+            network: values?.network || '',
+            site: values?.site || '',
+        });
+        if (result?.error) {
+            throw new Error(result.error);
+        }
+        if (!result?.jobId) {
+            throw new Error(result?.message || 'Action response is missing jobId');
+        }
         setActiveAction(null);
-        setJob(result);
+        setJob({
+            ...result,
+            message: result?.message || '',
+            error: result?.error || '',
+        });
     };
 
     return (
-        <div className="page-container">
+        <div className={`page-container action-screen action-screen--${screenId}`}>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">{title}</h1>

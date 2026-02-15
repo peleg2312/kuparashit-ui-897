@@ -2,6 +2,7 @@ import axios from 'axios';
 
 export const API_CONFIG = {
     accessTokenCookie: import.meta.env.VITE_AUTH_TOKEN_COOKIE || 'access_token',
+    sessionStorageKey: import.meta.env.VITE_AUTH_SESSION_KEY || 'kupa_session_v2',
     timeoutMs: Number(import.meta.env.VITE_API_TIMEOUT_MS || 30000),
     mainBaseUrl: import.meta.env.VITE_MAIN_API_BASE_URL
         || import.meta.env.VITE_API_BASE_URL
@@ -10,6 +11,7 @@ export const API_CONFIG = {
 
 API_CONFIG.kprBaseUrl = import.meta.env.VITE_KPR_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.exchBaseUrl = import.meta.env.VITE_EXCH_API_BASE_URL || API_CONFIG.mainBaseUrl;
+API_CONFIG.troubleshooterBaseUrl = import.meta.env.VITE_TROUBLESHOOTER_API_BASE_URL || API_CONFIG.mainBaseUrl;
 
 function getCookie(name) {
     if (typeof document === 'undefined') return '';
@@ -17,6 +19,18 @@ function getCookie(name) {
     const parts = value.split(`; ${name}=`);
     if (parts.length < 2) return '';
     return decodeURIComponent(parts.pop().split(';').shift() || '');
+}
+
+function getStoredToken() {
+    if (typeof window === 'undefined') return '';
+    try {
+        const raw = window.localStorage.getItem(API_CONFIG.sessionStorageKey);
+        if (!raw) return '';
+        const parsed = JSON.parse(raw);
+        return String(parsed?.token || '').trim();
+    } catch {
+        return '';
+    }
 }
 
 function createHttpClient(baseURL, { withAuth = true } = {}) {
@@ -28,7 +42,7 @@ function createHttpClient(baseURL, { withAuth = true } = {}) {
 
     if (withAuth) {
         client.interceptors.request.use((config) => {
-            const token = getCookie(API_CONFIG.accessTokenCookie);
+            const token = getStoredToken() || getCookie(API_CONFIG.accessTokenCookie);
             if (!token) return config;
 
             const headers = config.headers || {};
@@ -64,7 +78,10 @@ export function buildApiError(error, action = 'api_request') {
 export async function runApiRequest(action, request) {
     try {
         const response = await request();
-        return response.data;
+        if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'data')) {
+            return response.data;
+        }
+        return response;
     } catch (error) {
         throw buildApiError(error, action);
     }
@@ -81,5 +98,6 @@ export async function runApiRequestNoData(action, request) {
 export const http = {
     main: createHttpClient(API_CONFIG.mainBaseUrl, { withAuth: true }),
     kpr: createHttpClient(API_CONFIG.kprBaseUrl, { withAuth: true }),
-    exch: createHttpClient(API_CONFIG.exchBaseUrl, { withAuth: false }),
+    exch: createHttpClient(API_CONFIG.exchBaseUrl, { withAuth: true }),
+    troubleshooter: createHttpClient(API_CONFIG.troubleshooterBaseUrl, { withAuth: true }),
 };
