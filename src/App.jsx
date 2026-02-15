@@ -12,7 +12,7 @@ import ExchPage from './pages/ExchPage';
 import QtreePage from './pages/QtreePage';
 import TroubleshooterPage from './pages/TroubleshooterPage';
 import MdsBuilderPage from './pages/MdsBuilderPage';
-import RefhaelToolsPage from './pages/RefhaelToolsPage';
+import RefaelToolsPage from './pages/RefaelToolsPage';
 import PricePage from './pages/PricePage';
 import HerziToolsPage from './pages/HerziToolsPage';
 import NetappUpgradePage from './pages/NetappUpgradePage';
@@ -122,8 +122,8 @@ export default function App() {
               } />
 
               {/* Tools */}
-              <Route path="/refhael-tools" element={
-                <PermissionRoute screenId="refhael"><RefhaelToolsPage /></PermissionRoute>
+              <Route path="/refael-tools" element={
+                <PermissionRoute screenId="refael"><RefaelToolsPage /></PermissionRoute>
               } />
               <Route path="/price" element={
                 <PermissionRoute screenId="price"><PricePage /></PermissionRoute>
@@ -147,3 +147,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

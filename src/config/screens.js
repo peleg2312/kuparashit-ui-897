@@ -18,7 +18,7 @@ const screens = [
     { id: 'mds-builder', label: 'MDS Builder', path: '/scripts/mds-builder', icon: HiCode, group: 'scripts', groupLabel: 'Scripts' },
 
     // Tools
-    { id: 'refhael', label: 'Refhael Tools', path: '/refhael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },
+    { id: 'refael', label: 'Refael Tools', path: '/refael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'price', label: 'Price Calculator', path: '/price', icon: HiCurrencyDollar, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'herzitools', label: 'Herzi Tools', path: '/herzi-tools', icon: HiCog, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'netapp-upgrade', label: 'NetApp Upgrade', path: '/netapp-upgrade', icon: HiTerminal, group: 'netapp', groupLabel: 'NetApp Operations' },
@@ -45,3 +45,4 @@ export function getScreensByGroup(allowedScreenIds) {
 export function getScreenById(id) {
     return screens.find(s => s.id === id);
 }
+

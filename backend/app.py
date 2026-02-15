@@ -52,7 +52,7 @@ USERS_DB: list[dict[str, Any]] = [
         "name": "Admin User",
         "email": "admin@company.com",
         "role": "admin",
-        "teams": ["BLOCK", "NASA"],
+        "teams": ["BLOCK", "NASA","Shimiada","Vans"],
         "avatar": None,
         "password_hash": pwd_context.hash("admin123"),
     },
@@ -89,8 +89,22 @@ USERS_DB: list[dict[str, Any]] = [
 ]
 
 TEAM_PERMISSIONS = {
-    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refhael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder"],
+    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder"],
     "NASA": ["qtree", "ds"],
+    "Shimiada": ["price", "refael"],
+    "Vans": ["herzitools"],
+    "Virtu": ["esx"],
+    "Team49": ["qtree"],
+    "Orca": ["herzitools"],
+}
+TEAM_PERMISSION_FLAGS = {
+    "BLOCK": "isBlock",
+    "NASA": "isNasa",
+    "Shimiada": "isShimiada",
+    "Vans": "isStorageAdmin",
+    "Virtu": "isVirualizationAdmin",
+    "Team49": "is49Client",
+    "Orca": "isOrcaAdmin",
 }
 
 VC_META = {
@@ -566,13 +580,28 @@ def permissions_for_teams(teams: list[str]) -> list[str]:
     return sorted(merged)
 
 
+def all_known_teams() -> list[str]:
+    # Include every team that can be represented in auth flags.
+    return sorted(TEAM_PERMISSION_FLAGS.keys())
+
+
+def is_admin_user(user: dict[str, Any] | None) -> bool:
+    return str((user or {}).get("role", "")).strip().lower() == "admin"
+
+
+def effective_user_teams(user: dict[str, Any]) -> list[str]:
+    if is_admin_user(user):
+        return all_known_teams()
+    return [str(team).strip() for team in user.get("teams", []) if str(team).strip()]
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": user["id"],
         "name": user["name"],
         "email": user["email"],
         "role": user["role"],
-        "teams": user.get("teams", []),
+        "teams": effective_user_teams(user),
         "avatar": user.get("avatar"),
     }
 
@@ -660,18 +689,39 @@ def parse_query_list(request: Request, keys: set[str]) -> list[str]:
 
 
 def parse_team_list(request: Request, teams: list[str] | None = None) -> list[str]:
-    team_list = [str(team).strip() for team in (teams or []) if str(team).strip()]
-    if team_list:
-        return team_list
-    return parse_query_list(request, {"teams", "teams[]"})
+    def normalize_team(value: str) -> str | None:
+        normalized = str(value or "").strip()
+        if not normalized:
+            return None
+        if normalized in TEAM_PERMISSIONS:
+            return normalized
+
+        lowered = normalized.lower()
+        for team_name, permission_flag in TEAM_PERMISSION_FLAGS.items():
+            if lowered == permission_flag.lower():
+                return team_name
+        return None
+
+    raw_team_values = [str(team).strip() for team in (teams or []) if str(team).strip()]
+    if not raw_team_values:
+        raw_team_values = parse_query_list(request, {"teams", "teams[]"})
+
+    normalized_teams: list[str] = []
+    for team_value in raw_team_values:
+        normalized = normalize_team(team_value)
+        if normalized and normalized not in normalized_teams:
+            normalized_teams.append(normalized)
+    return normalized_teams
 
 
 def build_team_access_map(team_list: list[str]) -> dict[str, bool]:
-    known_teams = sorted(TEAM_PERMISSIONS.keys())
-    if not known_teams:
+    if not TEAM_PERMISSION_FLAGS:
         return {}
     enabled = {str(team).strip() for team in team_list if str(team).strip()}
-    return {team: team in enabled for team in known_teams}
+    return {
+        flag: team in enabled
+        for team, flag in TEAM_PERMISSION_FLAGS.items()
+    }
 
 
 PUBLIC_PATHS = {
@@ -1110,9 +1160,12 @@ def auth_check_contract(request: Request, token: str, teams: list[str] | None = 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+    if is_admin_user(user):
+        return build_team_access_map(all_known_teams())
+
     team_list = parse_team_list(request, teams)
     if not team_list:
-        team_list = [str(team).strip() for team in user.get("teams", []) if str(team).strip()]
+        team_list = effective_user_teams(user)
 
     return build_team_access_map(team_list)
 
@@ -1131,7 +1184,7 @@ def login_local(payload: LocalLoginPayload, response: Response) -> dict[str, Any
     set_auth_cookie(response, token)
 
     user_public = public_user(user)
-    teams = user_public.get("teams", [])
+    teams = effective_user_teams(user)
     return {
         "user": user_public,
         "authMode": "local",
@@ -1147,7 +1200,7 @@ def login_adfs(response: Response) -> dict[str, Any]:
     set_auth_cookie(response, token)
 
     user_public = public_user(user)
-    teams = user_public.get("teams", [])
+    teams = effective_user_teams(user)
     return {
         "user": user_public,
         "authMode": "adfs",
@@ -1163,7 +1216,7 @@ def session(request: Request) -> Any:
         return None
 
     user_public = public_user(user)
-    teams = user_public.get("teams", [])
+    teams = effective_user_teams(user)
     return {
         "user": user_public,
         "authMode": "cookie",
@@ -1174,15 +1227,13 @@ def session(request: Request) -> Any:
 
 @app.get("/auth/permissions")
 def auth_permissions(request: Request, teams: list[str] | None = None) -> dict[str, Any]:
-    team_list = teams or []
-    if not team_list:
-        for key, value in request.query_params.multi_items():
-            if key in ("teams", "teams[]") and value:
-                team_list.append(value)
-    if not team_list:
-        user = current_user_from_request(request)
-        if user:
-            team_list = user.get("teams", [])
+    user = current_user_from_request(request)
+    if is_admin_user(user):
+        team_list = all_known_teams()
+    else:
+        team_list = parse_team_list(request, teams)
+        if not team_list and user:
+            team_list = effective_user_teams(user)
     return {"teams": team_list, "permissions": permissions_for_teams(team_list)}
 
 
@@ -1555,7 +1606,7 @@ def calculate_storage_powerflex(
     return price_calculate(payload)
 
 
-@app.post("/refhael/process-files")
+@app.post("/refael/process-files")
 def process_files(
     file1: UploadFile = File(...),
     file2: UploadFile = File(...),
@@ -2106,3 +2157,4 @@ def generic_actions_patch(path: str, payload: dict[str, Any]) -> dict[str, Any]:
 @app.delete("/{path:path}")
 def generic_actions_delete(path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     return _create_job(f"/{path}", payload or {})
+

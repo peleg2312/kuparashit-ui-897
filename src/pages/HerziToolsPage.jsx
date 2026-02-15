@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { herziCategories, getBoxesByCategory } from '../config/herziBoxes';
 import { herziApi } from '../api';
-import { HiLightningBolt, HiSearch, HiX } from 'react-icons/hi';
+import { HiDatabase, HiDesktopComputer, HiRefresh, HiSearch, HiServer, HiSwitchHorizontal, HiTerminal, HiX } from 'react-icons/hi';
 import { formatHerziToolResult, parseHerziInputList } from '../utils/herziHandlers';
 import Toast from '../components/Toast/Toast';
 import { copyListToClipboard, copyTextToClipboard } from '../utils/clipboardHandlers';
 import './HerziToolsPage.css';
+
+const categoryIconMap = {
+    STORAGE: HiDatabase,
+    ESX: HiServer,
+    VM: HiDesktopComputer,
+    VC: HiSwitchHorizontal,
+    PWWN: HiTerminal,
+};
 
 function SingleResultPopup({ title, item, result, onClose, onCopy }) {
     return (
@@ -176,6 +184,26 @@ function buildMultiResultState(inputItems, response) {
     return { items: orderedItems, resultsByItem };
 }
 
+function BoxLoadingPopup({ title }) {
+    return (
+        <div className="herzi-loading-popup" role="status" aria-live="polite">
+            <div className="herzi-loading-popup__card animate-scale">
+                <div className="herzi-loading-popup__scanner" aria-hidden="true">
+                    <span className="herzi-loading-popup__ring herzi-loading-popup__ring--outer" />
+                    <span className="herzi-loading-popup__ring herzi-loading-popup__ring--inner" />
+                    <span className="herzi-loading-popup__core">
+                        <HiRefresh size={16} className="animate-spin" />
+                    </span>
+                </div>
+                <div className="herzi-loading-popup__copy">
+                    <p>Running</p>
+                    <span>{title}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function DynamicBox({ box }) {
     const [input, setInput] = useState('');
     const [resultState, setResultState] = useState(null);
@@ -183,8 +211,15 @@ function DynamicBox({ box }) {
     const [toast, setToast] = useState('');
     const [toastType, setToastType] = useState('success');
     const toastTimerRef = useRef(null);
+    const inputPlaceholder = useMemo(() => {
+        const normalizedLabel = String(box.inputLabel || '').trim();
+        if (!normalizedLabel) return 'Input';
+        const [firstWord] = normalizedLabel.split(/[\s/]+/);
+        return firstWord || 'Input';
+    }, [box.inputLabel]);
 
     const closeResult = () => setResultState(null);
+    const PrimaryIcon = categoryIconMap[box.categories?.[0]] || HiSearch;
 
     useEffect(() => () => {
         if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
@@ -224,6 +259,7 @@ function DynamicBox({ box }) {
     };
 
     const handleSubmit = async () => {
+        if (loading) return;
         const inputItems = parseHerziInputList(input);
         if (!inputItems.length) return;
 
@@ -256,12 +292,17 @@ function DynamicBox({ box }) {
 
     return (
         <>
-            <div className="herzi-box glass-card">
-                <div className="herzi-box__icon-wrapper">
-                    <HiLightningBolt size={28} />
-                </div>
+            <div className={`herzi-box glass-card ${loading ? 'herzi-box--loading' : ''}`} aria-busy={loading}>
                 <div className="herzi-box__content">
-                    <h3 className="herzi-box__title">{box.title}</h3>
+                    <div className="herzi-box__head">
+                        <span className="herzi-box__icon" aria-hidden="true">
+                            <PrimaryIcon size={17} />
+                        </span>
+                        <div className="herzi-box__title-wrap">
+                            <h3 className="herzi-box__title">{box.title}</h3>
+                            <p className="herzi-box__subtitle">{box.inputLabel} input</p>
+                        </div>
+                    </div>
                     <div className="herzi-box__cats">
                         {box.categories.map((category) => (
                             <span key={category} className="badge badge-accent small-badge">{category}</span>
@@ -270,8 +311,9 @@ function DynamicBox({ box }) {
                     <div className="herzi-box__input-area">
                         <textarea
                             className="herzi-input herzi-input--textarea"
-                            placeholder={box.inputLabel}
+                            placeholder={inputPlaceholder}
                             value={input}
+                            disabled={loading}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => {
                                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -284,12 +326,25 @@ function DynamicBox({ box }) {
                             className="btn-primary herzi-submit-btn"
                             onClick={handleSubmit}
                             disabled={loading}
-                            title="Run Tool"
+                            title={loading ? 'Running query' : 'Run Tool'}
                         >
-                            {loading ? <span className="animate-spin">...</span> : <HiSearch size={18} />}
+                            {loading ? (
+                                <>
+                                    <HiRefresh size={15} className="animate-spin" />
+                                    Running
+                                </>
+                            ) : (
+                                <>
+                                    Run <HiSearch size={15} />
+                                </>
+                            )}
                         </button>
                     </div>
+                    <p className={`herzi-box__hint ${loading ? 'herzi-box__hint--loading' : ''}`} aria-live="polite">
+                        {loading ? 'Fetching result...' : 'Tip: press Ctrl+Enter to run quickly'}
+                    </p>
                 </div>
+                {loading && <BoxLoadingPopup title={box.title} />}
             </div>
             {resultState?.mode === 'single' && (
                 <SingleResultPopup

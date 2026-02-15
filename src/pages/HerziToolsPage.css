@@ -7,91 +7,143 @@
 .herzi-categories-wrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .herzi-categories {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    padding: 10px;
+    padding: 9px;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--bg-secondary);
 }
 
 .herzi-cat-btn {
-    min-width: 72px;
-    padding: 8px 16px;
+    min-width: 76px;
+    padding: 9px 16px;
     border-radius: 999px;
-    font-size: 0.86rem;
+    font-size: 0.83rem;
     font-weight: 800;
     color: var(--text-secondary);
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .herzi-cat-btn:hover {
     background: var(--bg-input);
+    color: var(--text-primary);
+    transform: none;
 }
 
 .herzi-cat-btn--active {
     color: #fff;
-    background: var(--accent-gradient);
+    background: var(--accent);
+    box-shadow: none;
+}
+
+.herzi-cat-btn--active:hover,
+.herzi-cat-btn--active:focus-visible {
+    color: #fff;
+    background: var(--accent-hover);
+    outline: 2px solid color-mix(in srgb, var(--accent), transparent 70%);
+    outline-offset: 1px;
 }
 
 .herzi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-    gap: 16px;
-    align-items: stretch;
+    grid-template-columns: repeat(auto-fill, minmax(368px, 368px));
+    gap: 20px;
+    justify-content: center;
+    align-items: start;
 }
 
 .herzi-box {
-    padding: 20px;
-    min-height: 190px;
-    display: flex;
-    gap: 14px;
+    position: relative;
+    padding: 14px;
+    height: 232px;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.herzi-box__icon-wrapper {
-    width: 58px;
-    height: 58px;
-    border-radius: 12px;
-    background: var(--accent-subtle);
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+.herzi-box:hover {
+    transform: translateY(-1px);
+    border-color: var(--border-hover);
+    box-shadow: 0 6px 14px rgba(16, 24, 40, 0.08);
+}
+
+.herzi-box--loading {
+    border-color: color-mix(in srgb, var(--accent), var(--border) 44%);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent), transparent 80%);
 }
 
 .herzi-box__content {
-    flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    height: 100%;
+}
+
+.herzi-box__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.herzi-box__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 78%);
+    flex-shrink: 0;
+}
+
+.herzi-box__title-wrap {
     min-width: 0;
 }
 
 .herzi-box__title {
-    font-size: 1.08rem;
+    font-size: 0.99rem;
     font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.herzi-box__subtitle {
+    margin-top: 2px;
+    font-size: 0.74rem;
+    color: var(--text-muted);
 }
 
 .herzi-box__cats {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 6px;
+    margin-top: 8px;
     margin-bottom: 8px;
 }
 
 .small-badge {
-    font-size: 0.68rem;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 0.67rem;
+    letter-spacing: 0.04em;
 }
 
 .herzi-box__input-area {
-    margin-top: 10px;
+    margin-top: auto;
     display: flex;
     align-items: stretch;
     gap: 8px;
@@ -99,36 +151,163 @@
 
 .herzi-input {
     flex: 1;
-    min-height: 46px;
-    border-radius: var(--radius-md);
+    min-height: 48px;
+    border-radius: 12px;
     border: 1px solid var(--border);
     background: var(--bg-input);
     color: var(--text-primary);
     padding: 0 12px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .herzi-input--textarea {
-    min-height: 78px;
-    padding: 9px 12px;
+    min-height: 66px;
+    max-height: 66px;
+    padding: 10px 12px;
     resize: none;
     font-family: 'JetBrains Mono', monospace;
-    line-height: 1.45;
+    line-height: 1.35;
+    font-size: 0.8rem;
 }
 
 .herzi-input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-subtle);
+    background: var(--bg-secondary);
 }
 
 .herzi-submit-btn {
-    width: 46px;
-    height: 46px;
-    border-radius: var(--radius-md);
+    min-width: 84px;
+    height: 44px;
+    border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
     align-self: flex-end;
+    background: var(--accent);
+    box-shadow: none;
+    transition: background var(--transition-fast);
+}
+
+.herzi-submit-btn:hover {
+    transform: none;
+    background: var(--accent-hover);
+}
+
+.herzi-box__hint {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.herzi-loading-popup {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--bg-card), transparent 22%);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+}
+
+.herzi-loading-popup__card {
+    width: min(250px, calc(100% - 28px));
+    border: 1px solid color-mix(in srgb, var(--accent), var(--border) 58%);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--bg-secondary), #fff 8%) 0%, var(--bg-card) 100%);
+    box-shadow: 0 14px 28px rgba(16, 24, 40, 0.16);
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+}
+
+.herzi-loading-popup__scanner {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+}
+
+.herzi-loading-popup__ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--accent), transparent 68%);
+}
+
+.herzi-loading-popup__ring--outer {
+    inset: 0;
+    animation: herziLoadingOrbit 1.55s linear infinite;
+}
+
+.herzi-loading-popup__ring--inner {
+    inset: 9px;
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--accent), transparent 54%);
+    animation: herziLoadingOrbit 1.05s linear infinite reverse;
+}
+
+.herzi-loading-popup__core {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 78%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-secondary) 26%);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    animation: herziLoadingPulse 1.2s ease-in-out infinite;
+}
+
+.herzi-loading-popup__copy {
+    display: grid;
+    gap: 2px;
+    text-align: center;
+}
+
+.herzi-loading-popup__copy p {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.herzi-loading-popup__copy span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+@keyframes herziLoadingOrbit {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes herziLoadingPulse {
+    0%,
+    100% {
+        transform: scale(0.94);
+    }
+    50% {
+        transform: scale(1);
+    }
 }
 
 .herzi-result-modal {
@@ -352,7 +531,12 @@
 
 @media (max-width: 960px) {
     .herzi-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .herzi-box {
+        height: auto;
+        min-height: 204px;
     }
 
     .herzi-box__input-area {

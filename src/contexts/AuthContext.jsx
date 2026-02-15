@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
-import teams from '../config/teams';
+import teams, { resolveTeamId } from '../config/teams';
 import { authApi } from '../api';
 import { clearSession, loadSession, saveSession } from '../utils/authHandlers';
 
@@ -60,12 +60,14 @@ function buildPermissionTeams(permissionMap, fallbackTeams = []) {
         .map(([name]) => String(name));
 
     const knownTeamIds = new Set(Object.keys(teams));
-    const mappedTeams = permissionKeys.filter((name) => knownTeamIds.has(name));
+    const mappedTeams = permissionKeys
+        .map((name) => resolveTeamId(name))
+        .filter((teamId) => knownTeamIds.has(teamId));
     if (mappedTeams.length) return mappedTeams;
 
     if (Array.isArray(fallbackTeams) && fallbackTeams.length) {
         const filteredFallback = fallbackTeams
-            .map((team) => String(team))
+            .map((team) => resolveTeamId(team))
             .filter((team) => knownTeamIds.has(team));
         if (filteredFallback.length) return filteredFallback;
     }
@@ -127,7 +129,7 @@ export function AuthProvider({ children }) {
                     return;
                 }
 
-                const permissionPayload = await authApi.getPermissions(storedToken, stored?.user?.teams || []);
+                const permissionPayload = await authApi.getPermissions(storedToken);
                 const parsedPermissions = parsePermissionPayload(permissionPayload);
                 if (!mounted) return;
 
@@ -163,7 +165,7 @@ export function AuthProvider({ children }) {
         const nextToken = String(loginResponse?.token || '').trim();
 
         if (nextToken) {
-            const permissionPayload = await authApi.getPermissions(nextToken, []);
+            const permissionPayload = await authApi.getPermissions(nextToken);
             const parsedPermissions = parsePermissionPayload(permissionPayload);
             const nextSession = buildSessionFromToken({
                 token: nextToken,

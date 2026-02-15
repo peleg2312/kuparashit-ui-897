@@ -9,13 +9,10 @@ export const authApi = {
         return runApiRequest('auth.loginAdfs', () => http.main.post('/auth_upload', { username }));
     },
 
-    async getPermissions(token = '', teamIds = []) {
+    async getPermissions(token = '') {
         const safeToken = String(token || '').trim();
         return runApiRequest('auth.getPermissions', () => http.main.get(
             `/auth_check/${encodeURIComponent(safeToken)}`,
-            {
-                params: { teams: teamIds },
-            },
         ));
     },
 
