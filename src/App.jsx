@@ -11,6 +11,7 @@ import VMSPage from './pages/Dashboard/VMSPage';
 import ExchPage from './pages/ExchPage';
 import QtreePage from './pages/QtreePage';
 import TroubleshooterPage from './pages/TroubleshooterPage';
+import MdsBuilderPage from './pages/MdsBuilderPage';
 import RefhaelToolsPage from './pages/RefhaelToolsPage';
 import PricePage from './pages/PricePage';
 import HerziToolsPage from './pages/HerziToolsPage';
@@ -115,6 +116,9 @@ export default function App() {
               } />
               <Route path="/troubleshooter" element={
                 <PermissionRoute screenId="troubleshooter"><TroubleshooterPage /></PermissionRoute>
+              } />
+              <Route path="/scripts/mds-builder" element={
+                <PermissionRoute screenId="mds-builder"><MdsBuilderPage /></PermissionRoute>
               } />
 
               {/* Tools */}

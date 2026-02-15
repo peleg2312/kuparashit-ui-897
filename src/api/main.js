@@ -154,6 +154,17 @@ export const mainApi = {
     async executeAction(endpoint, payload = {}) {
         return runApiRequest('main.executeAction', () => http.main.post(endpoint, payload));
     },
+    async executeSmallMdsBuilder(payload = {}) {
+        return runApiRequest('main.executeSmallMdsBuilder', () => {
+            const formData = new FormData();
+            formData.append('mdss', JSON.stringify(payload?.mdss || {}));
+            return http.main.post('/ansible/small_mds_builder', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        });
+    },
     async runMultiCommand({ user, password, command, hosts }) {
         return runApiRequest('main.runMultiCommand', () => http.main.get('/multi_command', {
             params: {

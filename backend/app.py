@@ -37,6 +37,10 @@ ACCESS_TOKEN_TTL_MIN = int(os.getenv("ACCESS_TOKEN_TTL_MIN", "60"))
 ACCESS_COOKIE_NAME = os.getenv("ACCESS_COOKIE_NAME", "access_token")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
+try:
+    TROUBLESHOOTER_DELAY_MS = max(0, int(os.getenv("TROUBLESHOOTER_DELAY_MS", "4500")))
+except ValueError:
+    TROUBLESHOOTER_DELAY_MS = 4500
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -85,7 +89,7 @@ USERS_DB: list[dict[str, Any]] = [
 ]
 
 TEAM_PERMISSIONS = {
-    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refhael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec"],
+    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refhael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder"],
     "NASA": ["qtree", "ds"],
 }
 
@@ -326,6 +330,74 @@ RDMS_BY_VC_CLUSTER: dict[str, dict[str, dict[str, dict[str, Any]]]] = {
 }
 
 
+def seed_demo_inventory() -> None:
+    for idx in range(4, 29):
+        vc_name = f"VC-DEMO-{idx:02d}"
+        cluster_name = f"Cluster-DEMO-{idx:02d}"
+        ds_name = f"DS-DEMO-{idx:02d}-01"
+        vm_name = f"vm-demo-{idx:02d}"
+        esx_name = f"ESX-DEMO-{idx:02d}-01"
+        naa_name = f"naa.demo.{idx:04d}"
+
+        VC_META[vc_name] = {
+            "id": f"vc-demo-{idx:02d}",
+            "location": "Demo Lab",
+            "status": "healthy" if idx % 3 else "warning",
+            "version": "8.0.2",
+        }
+
+        DATASTORES_BY_VC_CLUSTER[vc_name] = {
+            cluster_name: {
+                ds_name: {
+                    "name": ds_name,
+                    "vc": vc_name,
+                    "ds_cluster": f"DS-Cluster-DEMO-{idx:02d}",
+                    "size": 8192 + (idx * 256),
+                },
+            },
+        }
+
+        VMS_BY_VC_CLUSTER[vc_name] = {
+            cluster_name: {
+                vm_name: {
+                    "name": vm_name,
+                    "naas_of_rdms": [naa_name],
+                    "datastore": ds_name,
+                    "vc": vc_name,
+                },
+            },
+        }
+
+        ESX_BY_VC_CLUSTER[vc_name] = {
+            cluster_name: {
+                esx_name: {
+                    "name": esx_name,
+                    "vc": vc_name,
+                    "esx_cluster": cluster_name,
+                    "pwwns": [
+                        f"10:00:00:90:fa:90:{idx:02d}:01",
+                        f"10:00:00:90:fa:90:{idx:02d}:02",
+                    ],
+                },
+            },
+        }
+
+        RDMS_BY_VC_CLUSTER[vc_name] = {
+            cluster_name: {
+                naa_name: {
+                    "naa": naa_name,
+                    "vc": vc_name,
+                    "esx_cluster": cluster_name,
+                    "size": 256 + (idx * 12),
+                    "connected": idx % 2 == 0,
+                },
+            },
+        }
+
+
+seed_demo_inventory()
+
+
 def build_inventory_tree() -> dict[str, dict[str, Any]]:
     vc_names = set(DATASTORES_BY_VC_CLUSTER) | set(VMS_BY_VC_CLUSTER) | set(ESX_BY_VC_CLUSTER) | set(RDMS_BY_VC_CLUSTER)
     tree: dict[str, dict[str, Any]] = {}
@@ -412,6 +484,23 @@ NETAPP_MACHINES = [
     },
 ]
 
+
+def seed_demo_netapps() -> None:
+    for idx in range(2, 13):
+        NETAPP_MACHINES.append(
+            {
+                "id": f"na-demo-{idx:02d}",
+                "name": f"NA-DEMO-{idx:02d}",
+                "host": f"10.150.{idx}.20",
+                "cluster": f"DEMO-Cluster-{idx:02d}",
+                "location": "Demo Lab",
+                "version": "ONTAP 9.14.1",
+            }
+        )
+
+
+seed_demo_netapps()
+
 QTREES = [
     {
         "id": "qt-1",
@@ -448,8 +537,26 @@ class HerziPayload(BaseModel):
     input: str | list[str]
 
 
+class TroubleshooterVCRequest(BaseModel):
+    vc_name: str
+
+
+class TroubleshooterNetappRequest(BaseModel):
+    netapp_name: str
+
+
+class TroubleshooterNaasRequest(BaseModel):
+    naas: list[str]
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+async def apply_troubleshooter_delay() -> None:
+    if TROUBLESHOOTER_DELAY_MS <= 0:
+        return
+    await asyncio.sleep(TROUBLESHOOTER_DELAY_MS / 1000)
 
 
 def permissions_for_teams(teams: list[str]) -> list[str]:
@@ -1565,6 +1672,86 @@ def herzi_tools(tool_name: str, payload: HerziPayload) -> str | list[dict[str, s
     return handler(query)
 
 
+@app.post("/vc")
+async def troubleshooter_vc(payload: TroubleshooterVCRequest) -> dict[str, Any]:
+    vc_name = str(payload.vc_name or "").strip()
+    if not vc_name:
+        raise HTTPException(status_code=400, detail="vc_name is required.")
+
+    await apply_troubleshooter_delay()
+
+    vc_meta = VC_META.get(vc_name, {})
+    clusters = sorted((INVENTORY.get(vc_name) or {}).keys())
+    return {
+        "mode": "vc",
+        "vc_name": vc_name,
+        "found": bool(vc_meta or clusters),
+        "vcenter": vc_meta or None,
+        "clusters": clusters,
+        "clustersCount": len(clusters),
+        "delayMs": TROUBLESHOOTER_DELAY_MS,
+        "generatedAt": now_iso(),
+    }
+
+
+@app.post("/netapp")
+async def troubleshooter_netapp(payload: TroubleshooterNetappRequest) -> dict[str, Any]:
+    netapp_name = str(payload.netapp_name or "").strip()
+    if not netapp_name:
+        raise HTTPException(status_code=400, detail="netapp_name is required.")
+
+    await apply_troubleshooter_delay()
+
+    machine = find_netapp_machine(netapp_name)
+    return {
+        "mode": "netapp",
+        "netapp_name": netapp_name,
+        "found": bool(machine),
+        "netapp": machine,
+        "delayMs": TROUBLESHOOTER_DELAY_MS,
+        "generatedAt": now_iso(),
+    }
+
+
+@app.post("/naas")
+async def troubleshooter_naas(payload: TroubleshooterNaasRequest) -> dict[str, Any]:
+    cleaned_naas = [str(item).strip() for item in (payload.naas or []) if str(item).strip()]
+    if not cleaned_naas:
+        raise HTTPException(status_code=400, detail="naas list is required.")
+
+    await apply_troubleshooter_delay()
+
+    rdms_by_naa = {
+        str(item.get("naa") or ""): item
+        for item in flatten_rdms()
+        if str(item.get("naa") or "").strip()
+    }
+    results = []
+    for naa in cleaned_naas:
+        details = rdms_by_naa.get(naa)
+        results.append(
+            {
+                "naa": naa,
+                "found": bool(details),
+                "details": details,
+            }
+        )
+
+    found_count = sum(1 for item in results if item["found"])
+    return {
+        "mode": "naas",
+        "naas": cleaned_naas,
+        "results": results,
+        "summary": {
+            "total": len(results),
+            "found": found_count,
+            "missing": len(results) - found_count,
+        },
+        "delayMs": TROUBLESHOOTER_DELAY_MS,
+        "generatedAt": now_iso(),
+    }
+
+
 @app.get("/multi_command")
 def multi_command_contract(
     request: Request,
@@ -1876,6 +2063,29 @@ async def ws_netapp_demo(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": f"Unsupported message type: {message_type}"})
     except WebSocketDisconnect:
         return
+
+
+@app.post("/ansible/small_mds_builder")
+def ansible_small_mds_builder(mdss: str = Form(...)) -> dict[str, Any]:
+    try:
+        parsed_mdss = json.loads(mdss)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid mdss payload: {exc.msg}") from exc
+
+    if not isinstance(parsed_mdss, dict):
+        raise HTTPException(status_code=400, detail="Invalid mdss payload: expected object.")
+
+    required_sections = ["small_mds_a", "small_mds_b", "core_mds_a", "core_mds_b"]
+    missing = [name for name in required_sections if name not in parsed_mdss]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing mdss section(s): {', '.join(missing)}")
+
+    return {
+        "status": "accepted",
+        "message": "small_mds_builder request accepted",
+        "mdss": parsed_mdss,
+        "receivedAt": now_iso(),
+    }
 
 
 @app.post("/{path:path}")

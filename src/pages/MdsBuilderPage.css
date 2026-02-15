@@ -1,0 +1,257 @@
+.mds-page-content {
+    overflow: auto;
+}
+
+.mds-page {
+    width: min(1320px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 14px;
+    padding-bottom: 8px;
+}
+
+.mds-error {
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--error), transparent 92%);
+    color: var(--error);
+    padding: 10px 12px;
+    font-size: 0.86rem;
+}
+
+.mds-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.mds-card {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: var(--radius-lg);
+    overflow: visible;
+}
+
+.mds-card--small {
+    border: 1px solid color-mix(in srgb, var(--accent), var(--border) 72%);
+}
+
+.mds-card--core {
+    border: 1px solid color-mix(in srgb, var(--info), var(--border) 72%);
+    padding: 12px 14px 10px;
+    gap: 6px;
+}
+
+.mds-card__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mds-card__header h3 {
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+.mds-card__icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    background: var(--accent-subtle);
+}
+
+.mds-field {
+    display: grid;
+    gap: 6px;
+}
+
+.mds-field--ports {
+    margin-top: 2px;
+}
+
+.mds-card .input-field {
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.mds-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 800;
+}
+
+.mds-port-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.mds-port-add-btn {
+    min-height: 42px;
+}
+
+.mds-port-list {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-input);
+    min-height: 40px;
+    overflow: visible;
+    padding: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 6px;
+}
+
+.mds-card--small .mds-port-list {
+    min-height: 48px;
+}
+
+.mds-card--core .mds-port-list {
+    min-height: 38px;
+    margin-bottom: 8px;
+    padding: 5px 6px;
+}
+
+.mds-card--core .mds-field--ports {
+    padding-bottom: 6px;
+}
+
+.mds-port-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid color-mix(in srgb, var(--accent), var(--border) 72%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent), transparent 90%);
+    color: color-mix(in srgb, var(--accent), var(--text-primary) 35%);
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    padding: 3px 8px;
+}
+
+.mds-port-chip__remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--error), transparent 84%);
+    color: var(--error);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.mds-header-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    align-items: center;
+    margin-left: auto;
+    align-self: flex-start;
+}
+
+.mds-modal {
+    width: min(920px, 100%);
+}
+
+.mds-modal__body {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    overflow: hidden;
+}
+
+.mds-modal__body pre {
+    margin: 0;
+    padding: 14px;
+    max-height: min(56vh, 520px);
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.mds-loading {
+    min-height: 320px;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.mds-loading__spinner {
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--accent-gradient);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--accent), transparent 70%);
+}
+
+.mds-loading h3 {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.mds-loading p {
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+}
+
+.mds-result-banner {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--success);
+    border-radius: 10px;
+    background: var(--success-bg);
+    color: var(--success);
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+@media (max-width: 980px) {
+    .mds-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .mds-card {
+        padding: 14px;
+    }
+
+    .mds-port-input-row {
+        grid-template-columns: 1fr;
+    }
+
+    .mds-header-actions {
+        flex-direction: column;
+        width: 100%;
+        margin-left: 0;
+        align-self: stretch;
+    }
+
+    .mds-header-actions .btn {
+        width: 100%;
+    }
+}

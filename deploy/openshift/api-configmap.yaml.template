@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kupa-api-config
+data:
+  ACCESS_TOKEN_TTL_MIN: "60"
+  ACCESS_COOKIE_NAME: "access_token"
+  COOKIE_SECURE: "true"
+  TROUBLESHOOTER_DELAY_MS: "0"

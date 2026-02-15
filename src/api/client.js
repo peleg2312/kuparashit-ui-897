@@ -4,6 +4,7 @@ export const API_CONFIG = {
     accessTokenCookie: import.meta.env.VITE_AUTH_TOKEN_COOKIE || 'access_token',
     sessionStorageKey: import.meta.env.VITE_AUTH_SESSION_KEY || 'kupa_session_v2',
     timeoutMs: Number(import.meta.env.VITE_API_TIMEOUT_MS || 30000),
+    troubleshooterTimeoutMs: Number(import.meta.env.VITE_TROUBLESHOOTER_TIMEOUT_MS || 90000),
     mainBaseUrl: import.meta.env.VITE_MAIN_API_BASE_URL
         || import.meta.env.VITE_API_BASE_URL
         || 'http://localhost:8000',
@@ -33,11 +34,11 @@ function getStoredToken() {
     }
 }
 
-function createHttpClient(baseURL, { withAuth = true } = {}) {
+function createHttpClient(baseURL, { withAuth = true, timeoutMs = API_CONFIG.timeoutMs } = {}) {
     const client = axios.create({
         baseURL,
         withCredentials: true,
-        timeout: API_CONFIG.timeoutMs,
+        timeout: Number.isFinite(Number(timeoutMs)) ? Number(timeoutMs) : API_CONFIG.timeoutMs,
     });
 
     if (withAuth) {
@@ -99,5 +100,8 @@ export const http = {
     main: createHttpClient(API_CONFIG.mainBaseUrl, { withAuth: true }),
     kpr: createHttpClient(API_CONFIG.kprBaseUrl, { withAuth: true }),
     exch: createHttpClient(API_CONFIG.exchBaseUrl, { withAuth: true }),
-    troubleshooter: createHttpClient(API_CONFIG.troubleshooterBaseUrl, { withAuth: true }),
+    troubleshooter: createHttpClient(API_CONFIG.troubleshooterBaseUrl, {
+        withAuth: true,
+        timeoutMs: API_CONFIG.troubleshooterTimeoutMs,
+    }),
 };

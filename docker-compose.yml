@@ -2,6 +2,8 @@ services:
   api:
     build:
       context: ./backend
+    environment:
+      - TROUBLESHOOTER_DELAY_MS=${TROUBLESHOOTER_DELAY_MS:-4500}
     ports:
       - "8000:8000"
     restart: unless-stopped

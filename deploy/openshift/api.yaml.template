@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kupa-api
+  labels:
+    app: kupa-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kupa-api
+  template:
+    metadata:
+      labels:
+        app: kupa-api
+    spec:
+      containers:
+      - name: api
+        image: <registry>/<project>/kupa-api:<tag>
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: kupa-api-config
+        - secretRef:
+            name: kupa-api-secret
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          timeoutSeconds: 2
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kupa-api
+  labels:
+    app: kupa-api
+spec:
+  selector:
+    app: kupa-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kupa-api
+  labels:
+    app: kupa-api
+spec:
+  to:
+    kind: Service
+    name: kupa-api
+  port:
+    targetPort: http
+  tls:
+    termination: edge
