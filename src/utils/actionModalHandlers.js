@@ -78,9 +78,10 @@ function resolveTemplateValue(key, values) {
     if (values[key] != null && values[key] !== '') return values[key];
 
     const aliasMap = {
-        vcenter: 'vc',
-        ds_cluster: 'dsCluster',
-        esx_cluster: 'esxCluster',
+        vc: 'vc_name',
+        vcenter: 'vc_name',
+        ds_cluster: 'ds_cluster_name',
+        esx_cluster: 'esx_cluster_name',
     };
     const aliasKey = aliasMap[key];
     if (aliasKey && values[aliasKey] != null && values[aliasKey] !== '') {

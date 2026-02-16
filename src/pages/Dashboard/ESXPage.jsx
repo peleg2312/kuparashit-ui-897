@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import DashboardScreen from './DashboardScreen';
 import { mainApi } from '../../api';
+import ObjectUrlCell from '../../components/DataTable/ObjectUrlCell';
 import Toast from '../../components/Toast/Toast';
 import { copyListToClipboard } from '../../utils/clipboardHandlers';
 
@@ -66,6 +67,7 @@ export default function ESXPage() {
             render: renderPwwnsCell,
             filterable: true
         },
+        { key: 'url', label: 'URL', filterable: false, sortable: false, render: (value) => <ObjectUrlCell value={value} /> },
     ];
 
     return (

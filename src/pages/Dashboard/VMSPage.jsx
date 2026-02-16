@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import DashboardScreen from './DashboardScreen';
 import { mainApi } from '../../api';
+import ObjectUrlCell from '../../components/DataTable/ObjectUrlCell';
 import { HiX } from 'react-icons/hi';
 import Toast from '../../components/Toast/Toast';
 import { copyListToClipboard } from '../../utils/clipboardHandlers';
@@ -110,6 +111,7 @@ export default function VMSPage() {
         },
         { key: 'datastore', label: 'Datastore', filterable: true },
         { key: 'vc', label: 'vCenter', filterable: true },
+        { key: 'url', label: 'URL', filterable: false, sortable: false, render: (value) => <ObjectUrlCell value={value} /> },
     ];
 
     return (

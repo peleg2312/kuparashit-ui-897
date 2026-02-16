@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import DashboardScreen from './DashboardScreen';
 import { mainApi } from '../../api';
+import ObjectUrlCell from '../../components/DataTable/ObjectUrlCell';
 import { HiClipboardList, HiX } from 'react-icons/hi';
 import Toast from '../../components/Toast/Toast';
 import { formatSizeFromGb, parseNaaList } from '../../utils/dashboardHandlers';
@@ -111,6 +112,7 @@ export default function RDMPage() {
         { key: 'esx_cluster', label: 'ESX Cluster', filterable: true },
         { key: 'size', label: 'Size', filterable: false, render: formatSizeFromGb },
         { key: 'connected', label: 'Connected', filterable: true, render: renderConnectedCell },
+        { key: 'url', label: 'URL', filterable: false, sortable: false, render: (value) => <ObjectUrlCell value={value} /> },
     ];
 
     return (

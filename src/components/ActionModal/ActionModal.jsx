@@ -98,7 +98,7 @@ function buildInitialValues(action, initialValues = {}) {
     return base;
 }
 
-export default function ActionModal({ action, initialValues, onClose, onSubmit }) {
+export default function ActionModal({ action, actionKey, screenId, initialValues, onClose, onSubmit }) {
     const [values, setValues] = useState(() => buildInitialValues(action, initialValues));
     const [dropdownOptions, setDropdownOptions] = useState({});
     const [errors, setErrors] = useState({});
@@ -211,6 +211,7 @@ export default function ActionModal({ action, initialValues, onClose, onSubmit }
         () => (action ? action.params.filter((param) => isParamVisible(param, values)) : []),
         [action, values],
     );
+    const useCreateSuccessButton = actionKey === 'create' && (screenId === 'exch' || screenId === 'qtree');
 
     if (!action) return null;
 
@@ -472,7 +473,11 @@ export default function ActionModal({ action, initialValues, onClose, onSubmit }
 
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>Cancel</button>
-                    <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
+                    <button
+                        className={`btn ${useCreateSuccessButton ? 'btn-success' : 'btn-primary'}`}
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                    >
                         {submitting ? 'Processing...' : action.label}
                     </button>
                 </div>

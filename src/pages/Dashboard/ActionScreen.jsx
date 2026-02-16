@@ -16,6 +16,7 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
     const [job, setJob] = useState(null);
 
     const actions = getActionsForScreen(screenId);
+    const shouldHighlightCreate = screenId === 'exch' || screenId === 'qtree';
 
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];
@@ -59,7 +60,8 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
                 <div className="action-grid">
                     {Object.entries(actions).map(([key, action]) => {
                         const Icon = actionIconMap[key] || actionIconMap.default;
-                        const color = actionCardColorMap[key] || actionCardColorMap.default;
+                        const baseColor = actionCardColorMap[key] || actionCardColorMap.default;
+                        const color = shouldHighlightCreate && key === 'create' ? 'var(--success)' : baseColor;
 
                         return (
                             <button
@@ -84,6 +86,8 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
             {activeAction && actions[activeAction] && (
                 <ActionModal
                     action={actions[activeAction]}
+                    actionKey={activeAction}
+                    screenId={screenId}
                     onClose={() => setActiveAction(null)}
                     onSubmit={handleActionSubmit}
                 />

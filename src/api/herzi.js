@@ -11,7 +11,7 @@ export const herziApi = {
     async query(endpoint, input) {
         const normalizedInput = normalizeHerziInput(input);
         return runApiRequest('herzi.query', () => http.main.get(endpoint, {
-            params: { input: normalizedInput },
+            params: { 'data_list[]': normalizedInput },
         }));
     },
 };

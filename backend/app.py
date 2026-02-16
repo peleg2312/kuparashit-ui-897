@@ -7,6 +7,7 @@ import random
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 import jwt
@@ -563,8 +564,32 @@ class TroubleshooterNaasRequest(BaseModel):
     naas: list[str]
 
 
+class QtreeBasePayload(BaseModel):
+    svm: str
+    volume_name: str
+    qtree_name: str
+    job_id: str | None = None
+
+
+class QtreeCreatePayload(QtreeBasePayload):
+    size_in_mb: int
+    set_quota: bool
+
+
+class QtreePatchPayload(QtreeBasePayload):
+    size_in_mb: int
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def build_demo_object_url(kind: str, *parts: Any) -> str:
+    path_parts = [quote(str(part).strip(), safe="") for part in parts if str(part).strip()]
+    suffix = "/".join(path_parts)
+    if suffix:
+        return f"https://example.com/demo/{quote(kind, safe='')}/{suffix}"
+    return f"https://example.com/demo/{quote(kind, safe='')}"
 
 
 async def apply_troubleshooter_delay() -> None:
@@ -726,6 +751,7 @@ def build_team_access_map(team_list: list[str]) -> dict[str, bool]:
 
 PUBLIC_PATHS = {
     "/health",
+    "/demo/ui-urls",
     "/login/local",
     "/auth_upload",
     "/auth/login/local",
@@ -769,12 +795,19 @@ def flatten_datastores() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for _vc_name, _vc_meta, _cluster_name, cluster_data in iter_inventory():
         for ds in cluster_data.get("datastores", {}).values():
+            url = str(ds.get("url") or "").strip() or build_demo_object_url(
+                "datastores",
+                ds.get("vc"),
+                ds.get("ds_cluster") or _cluster_name,
+                ds.get("name"),
+            )
             rows.append(
                 {
                     "name": ds["name"],
                     "vc": ds["vc"],
                     "ds_cluster": ds["ds_cluster"],
                     "size": ds["size"],
+                    "url": url,
                 }
             )
     return rows
@@ -784,12 +817,19 @@ def flatten_esx_hosts() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for _vc_name, _vc_meta, _cluster_name, cluster_data in iter_inventory():
         for esx in cluster_data.get("esx", {}).values():
+            url = str(esx.get("url") or "").strip() or build_demo_object_url(
+                "esx",
+                esx.get("vc"),
+                esx.get("esx_cluster") or _cluster_name,
+                esx.get("name"),
+            )
             rows.append(
                 {
                     "name": esx["name"],
                     "vc": esx["vc"],
                     "esx_cluster": esx["esx_cluster"],
                     "pwwns": esx["pwwns"],
+                    "url": url,
                 }
             )
     return rows
@@ -799,6 +839,12 @@ def flatten_rdms() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for _vc_name, _vc_meta, _cluster_name, cluster_data in iter_inventory():
         for rdm in cluster_data.get("rdms", {}).values():
+            url = str(rdm.get("url") or "").strip() or build_demo_object_url(
+                "rdms",
+                rdm.get("vc"),
+                rdm.get("esx_cluster") or _cluster_name,
+                rdm.get("naa"),
+            )
             rows.append(
                 {
                     "naa": rdm["naa"],
@@ -806,6 +852,7 @@ def flatten_rdms() -> list[dict[str, Any]]:
                     "esx_cluster": rdm["esx_cluster"],
                     "size": rdm["size"],
                     "connected": rdm["connected"],
+                    "url": url,
                 }
             )
     return rows
@@ -815,14 +862,96 @@ def flatten_vms() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for _vc_name, _vc_meta, _cluster_name, cluster_data in iter_inventory():
         for vm in cluster_data.get("vms", {}).values():
+            url = str(vm.get("url") or "").strip() or build_demo_object_url(
+                "vms",
+                vm.get("vc"),
+                _cluster_name,
+                vm.get("name"),
+            )
             rows.append(
                 {
                     "name": vm["name"],
                     "naas_of_rdms": vm["naas_of_rdms"],
                     "datastore": vm["datastore"],
                     "vc": vm["vc"],
+                    "url": url,
                 }
             )
+    return rows
+
+
+def nested_datastores() -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    rows: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for vc_name, _vc_meta, cluster_name, cluster_data in iter_inventory():
+        vc_bucket = rows.setdefault(vc_name, {})
+        cluster_bucket = vc_bucket.setdefault(cluster_name, {})
+        for ds_name, ds in cluster_data.get("datastores", {}).items():
+            cluster_bucket[ds_name] = {
+                "cluster": ds.get("ds_cluster") or cluster_name,
+                "size": ds.get("size"),
+                "url": str(ds.get("url") or "").strip() or build_demo_object_url(
+                    "datastores",
+                    vc_name,
+                    ds.get("ds_cluster") or cluster_name,
+                    ds_name,
+                ),
+            }
+    return rows
+
+
+def nested_esx_hosts() -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    rows: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for vc_name, _vc_meta, cluster_name, cluster_data in iter_inventory():
+        vc_bucket = rows.setdefault(vc_name, {})
+        cluster_bucket = vc_bucket.setdefault(cluster_name, {})
+        for esx_name, esx in cluster_data.get("esx", {}).items():
+            cluster_bucket[esx_name] = {
+                "pwwns": esx.get("pwwns", []),
+                "url": str(esx.get("url") or "").strip() or build_demo_object_url(
+                    "esx",
+                    vc_name,
+                    esx.get("esx_cluster") or cluster_name,
+                    esx_name,
+                ),
+            }
+    return rows
+
+
+def nested_rdms() -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    rows: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for vc_name, _vc_meta, cluster_name, cluster_data in iter_inventory():
+        vc_bucket = rows.setdefault(vc_name, {})
+        cluster_bucket = vc_bucket.setdefault(cluster_name, {})
+        for naa, rdm in cluster_data.get("rdms", {}).items():
+            cluster_bucket[naa] = {
+                "size": rdm.get("size"),
+                "connected": bool(rdm.get("connected")),
+                "url": str(rdm.get("url") or "").strip() or build_demo_object_url(
+                    "rdms",
+                    vc_name,
+                    rdm.get("esx_cluster") or cluster_name,
+                    naa,
+                ),
+            }
+    return rows
+
+
+def nested_vms() -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+    rows: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
+    for vc_name, _vc_meta, cluster_name, cluster_data in iter_inventory():
+        vc_bucket = rows.setdefault(vc_name, {})
+        cluster_bucket = vc_bucket.setdefault(cluster_name, {})
+        for vm_name, vm in cluster_data.get("vms", {}).items():
+            cluster_bucket[vm_name] = {
+                "naas_of_rdms": vm.get("naas_of_rdms", []),
+                "datastore": vm.get("datastore", ""),
+                "url": str(vm.get("url") or "").strip() or build_demo_object_url(
+                    "vms",
+                    vc_name,
+                    cluster_name,
+                    vm_name,
+                ),
+            }
     return rows
 
 
@@ -956,7 +1085,11 @@ def _build_job_step_blueprint(action_label: str) -> list[dict[str, Any]]:
 
 
 def _create_job(action_label: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    job_id = f"JOB-{_utc_now_ms()}-{uuid4().hex[:6].upper()}"
+    requested_job_id = str((payload or {}).get("job_id") or "").strip()
+    if requested_job_id and requested_job_id not in JOBS_STORE:
+        job_id = requested_job_id
+    else:
+        job_id = f"JOB-{_utc_now_ms()}-{uuid4().hex[:6].upper()}"
     step_blueprint = _build_job_step_blueprint(action_label)
     fail_requested = bool((payload or {}).get("forceFail") or (payload or {}).get("simulateFail"))
     failure_step_index = len(step_blueprint) - 1 if fail_requested else None
@@ -1264,23 +1397,25 @@ def get_rdms() -> list[dict[str, Any]]:
 
 
 @app.get("/download/vms")
-def download_vms() -> dict[str, str]:
-    return {"content": json.dumps(flatten_vms())}
+def download_vms() -> dict[str, Any]:
+    return nested_vms()
 
 
+@app.get("/download/ds")
 @app.get("/download/datastores")
-def download_datastores() -> dict[str, str]:
-    return {"content": json.dumps(flatten_datastores())}
+def download_datastores() -> dict[str, Any]:
+    return nested_datastores()
 
 
 @app.get("/download/esx")
-def download_esx() -> dict[str, str]:
-    return {"content": json.dumps(flatten_esx_hosts())}
+def download_esx() -> dict[str, Any]:
+    return nested_esx_hosts()
 
 
+@app.get("/download/rdm")
 @app.get("/download/rdms")
-def download_rdms() -> dict[str, str]:
-    return {"content": json.dumps(flatten_rdms())}
+def download_rdms() -> dict[str, Any]:
+    return nested_rdms()
 
 
 @app.get("/vcenters")
@@ -1466,6 +1601,20 @@ def network_datatores(network: str, vcenter: str) -> list[str]:
     )
 
 
+@app.get("/network/{network}/vcenter/{vcenter}/cluster/{cluster}/datastores")
+def network_cluster_datastores(network: str, vcenter: str, cluster: str) -> list[str]:
+    _ = network
+    return sorted(
+        [
+            item["name"]
+            for item in flatten_datastores()
+            if str(item.get("vc") or "") == vcenter
+            and str(item.get("ds_cluster") or "") == cluster
+            and item.get("name")
+        ]
+    )
+
+
 @app.get("/network/{network}/vcenter/{vcenter}/hosts")
 def network_hosts(network: str, vcenter: str) -> list[str]:
     _ = network
@@ -1474,6 +1623,20 @@ def network_hosts(network: str, vcenter: str) -> list[str]:
             item["name"]
             for item in flatten_esx_hosts()
             if str(item.get("vc") or "") == vcenter and item.get("name")
+        ]
+    )
+
+
+@app.get("/network/{network}/vcenter/{vcenter}/cluster/{cluster}/hosts")
+def network_cluster_hosts(network: str, vcenter: str, cluster: str) -> list[str]:
+    _ = network
+    return sorted(
+        [
+            item["name"]
+            for item in flatten_esx_hosts()
+            if str(item.get("vc") or "") == vcenter
+            and str(item.get("esx_cluster") or "") == cluster
+            and item.get("name")
         ]
     )
 
@@ -1685,7 +1848,7 @@ def _run_herzi_contract_handler(request: Request) -> str | list[dict[str, str]]:
     if handler is None:
         return "No data found"
 
-    inputs = parse_query_list(request, {"input", "input[]"})
+    inputs = parse_query_list(request, {"input", "input[]", "data_list", "data_list[]"})
     if not inputs:
         return "No data found"
 
@@ -2137,6 +2300,105 @@ def ansible_small_mds_builder(mdss: str = Form(...)) -> dict[str, Any]:
         "mdss": parsed_mdss,
         "receivedAt": now_iso(),
     }
+
+
+def _require_non_empty_text(value: str, field_name: str) -> str:
+    normalized = str(value or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail=f"{field_name} is required.")
+    return normalized
+
+
+def _require_network(network: str | None) -> str:
+    normalized = str(network or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="network query parameter is required.")
+    return normalized
+
+
+@app.get("/demo/ui-urls")
+def demo_ui_urls() -> dict[str, Any]:
+    frontend_base = "http://localhost:5173"
+    backend_base = "http://localhost:8000"
+    return {
+        "frontend": {
+            "login": f"{frontend_base}/login",
+            "rdm": f"{frontend_base}/dashboard/rdm",
+            "ds": f"{frontend_base}/dashboard/ds",
+            "esx": f"{frontend_base}/dashboard/esx",
+            "vms": f"{frontend_base}/dashboard/vms",
+            "qtree": f"{frontend_base}/qtree",
+            "herzi_tools": f"{frontend_base}/herzi-tools",
+            "troubleshooter": f"{frontend_base}/troubleshooter",
+        },
+        "backend_samples": {
+            "herzi_unused_luns": f"{backend_base}/unused_luns?data_list%5B%5D=VC-TLV-01",
+            "herzi_naa_info": f"{backend_base}/get_naa_information?data_list%5B%5D=naa.6000A0A1B2C30001",
+            "herzi_vm_info": f"{backend_base}/get_vm_or_ds_information?data_list%5B%5D=web-prod-001",
+            "download_vms": f"{backend_base}/download/vms",
+            "download_ds": f"{backend_base}/download/ds",
+            "download_esx": f"{backend_base}/download/esx",
+            "download_rdm": f"{backend_base}/download/rdm",
+        },
+    }
+
+
+@app.post("/qtree")
+@app.post("/qtree/")
+def qtree_create(payload: QtreeCreatePayload, network: str) -> dict[str, Any]:
+    safe_network = _require_network(network)
+    safe_svm = _require_non_empty_text(payload.svm, "svm")
+    safe_volume_name = _require_non_empty_text(payload.volume_name, "volume_name")
+    safe_qtree_name = _require_non_empty_text(payload.qtree_name, "qtree_name")
+
+    if payload.set_quota and payload.size_in_mb <= 0:
+        raise HTTPException(status_code=400, detail="size_in_mb must be greater than 0 when set_quota is true.")
+    if payload.size_in_mb < 0:
+        raise HTTPException(status_code=400, detail="size_in_mb must be non-negative.")
+
+    body = payload.model_dump()
+    body["svm"] = safe_svm
+    body["volume_name"] = safe_volume_name
+    body["qtree_name"] = safe_qtree_name
+    body["network"] = safe_network
+    if not str(body.get("job_id") or "").strip():
+        body.pop("job_id", None)
+
+    return _create_job("/qtree/", body)
+
+
+@app.delete("/qtree")
+@app.delete("/qtree/")
+def qtree_delete(payload: QtreeBasePayload, network: str) -> dict[str, Any]:
+    safe_network = _require_network(network)
+
+    body = payload.model_dump()
+    body["svm"] = _require_non_empty_text(payload.svm, "svm")
+    body["volume_name"] = _require_non_empty_text(payload.volume_name, "volume_name")
+    body["qtree_name"] = _require_non_empty_text(payload.qtree_name, "qtree_name")
+    body["network"] = safe_network
+    if not str(body.get("job_id") or "").strip():
+        body.pop("job_id", None)
+
+    return _create_job("/qtree/", body)
+
+
+@app.patch("/qtree")
+@app.patch("/qtree/")
+def qtree_patch(payload: QtreePatchPayload, network: str) -> dict[str, Any]:
+    safe_network = _require_network(network)
+    if payload.size_in_mb <= 0:
+        raise HTTPException(status_code=400, detail="size_in_mb must be greater than 0.")
+
+    body = payload.model_dump()
+    body["svm"] = _require_non_empty_text(payload.svm, "svm")
+    body["volume_name"] = _require_non_empty_text(payload.volume_name, "volume_name")
+    body["qtree_name"] = _require_non_empty_text(payload.qtree_name, "qtree_name")
+    body["network"] = safe_network
+    if not str(body.get("job_id") or "").strip():
+        body.pop("job_id", None)
+
+    return _create_job("/qtree/", body)
 
 
 @app.post("/{path:path}")

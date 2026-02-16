@@ -11,7 +11,6 @@ const modeConfig = {
         icon: HiServer,
         color: '#2b7fff',
         subtitle: 'Scan environment via one vCenter.',
-        endpoint: 'POST /vc',
     },
     netapp: {
         key: 'netapp',
@@ -19,7 +18,6 @@ const modeConfig = {
         icon: HiSearch,
         color: '#0f9d62',
         subtitle: 'Scan environment via one NetApp machine.',
-        endpoint: 'POST /netapp',
     },
     naas: {
         key: 'naas',
@@ -27,7 +25,6 @@ const modeConfig = {
         icon: HiDatabase,
         color: '#d2871f',
         subtitle: 'Scan environment via NAA list.',
-        endpoint: 'POST /naas',
     },
 };
 
@@ -279,7 +276,6 @@ export default function TroubleshooterPage() {
                                     <p>{activeMode.subtitle}</p>
                                 </div>
                             </div>
-                            <span className="ts-endpoint-pill">{activeMode.endpoint}</span>
                         </div>
 
                         <div className="ts-workspace__body">

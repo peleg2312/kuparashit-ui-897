@@ -68,16 +68,52 @@ function parseListValue(value) {
     )];
 }
 
+function isParamVisibleForPayload(param, values) {
+    const rule = param?.visibleWhen;
+    if (!rule) return true;
+
+    if (rule.field) {
+        const currentValue = values?.[rule.field];
+        if (Object.prototype.hasOwnProperty.call(rule, 'equals')) {
+            return currentValue === rule.equals;
+        }
+        if (Array.isArray(rule.in)) {
+            return rule.in.includes(currentValue);
+        }
+    }
+
+    if (typeof rule === 'object') {
+        return Object.entries(rule).every(([field, expected]) => {
+            if (field === 'field' || field === 'equals' || field === 'in') return true;
+            const currentValue = values?.[field];
+            return Array.isArray(expected) ? expected.includes(currentValue) : currentValue === expected;
+        });
+    }
+
+    return true;
+}
+
 export function normalizeActionPayload(action, values = {}, extraPayload = {}) {
     const payload = { ...values, ...extraPayload };
     if (!action) return payload;
 
     const listFieldSet = new Set(action.listFields || []);
     const paramByName = new Map((action.params || []).map((param) => [param.name, param]));
+    const visibilitySource = { ...payload };
 
     Object.keys(payload).forEach((key) => {
         const param = paramByName.get(key);
         const value = payload[key];
+
+        if (param && !isParamVisibleForPayload(param, visibilitySource)) {
+            delete payload[key];
+            return;
+        }
+
+        if (param?.send === false) {
+            delete payload[key];
+            return;
+        }
 
         if (listFieldSet.has(key)) {
             payload[key] = parseListValue(value);
@@ -112,9 +148,9 @@ function asArray(value) {
 
 function inferPrefillSources(paramName) {
     const name = String(paramName || '').toLowerCase();
-    if (name === 'vc' || name.includes('vcenter')) return ['vc', 'vcenter'];
-    if (name.includes('dscluster')) return ['ds_cluster', 'cluster'];
-    if (name.includes('esxcluster')) return ['esx_cluster', 'cluster'];
+    if (name === 'vc' || name === 'vc_name' || name.includes('vcenter')) return ['vc', 'vcenter'];
+    if (name.includes('dscluster') || name.includes('ds_cluster')) return ['ds_cluster', 'cluster'];
+    if (name.includes('esxcluster') || name.includes('esx_cluster')) return ['esx_cluster', 'cluster'];
     if (name.includes('naa')) return ['naa'];
     if (name.includes('esxname') || name === 'hosts') return ['name'];
     if (name.includes('dsname') || name.includes('datastore')) return ['name', 'datastore'];

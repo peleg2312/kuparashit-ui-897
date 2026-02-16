@@ -460,6 +460,92 @@
     }
 }
 
+@supports not (color: color-mix(in srgb, #000, transparent 50%)) {
+    .ts-hero {
+        border: 1px solid var(--border-hover);
+        background:
+            radial-gradient(circle at 85% -20%, var(--accent-subtle) 0%, transparent 45%),
+            linear-gradient(140deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+    }
+
+    .ts-options-error,
+    .ts-run-error {
+        background: var(--error-bg);
+    }
+
+    .ts-mode-tab--active {
+        background: var(--bg-card-hover);
+    }
+
+    .ts-workspace {
+        border: 1px solid var(--border-hover);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .ts-workspace__decor {
+        background: radial-gradient(circle, var(--accent-subtle) 0%, transparent 70%);
+    }
+
+    .ts-workspace__icon {
+        background: var(--accent-subtle);
+    }
+
+    .ts-endpoint-pill {
+        background: var(--accent-subtle);
+        color: var(--accent);
+    }
+
+    .ts-input-block {
+        border: 1px solid var(--border-hover);
+        background: linear-gradient(160deg, var(--bg-input) 0%, var(--bg-input) 68%, var(--bg-card) 100%);
+    }
+
+    .ts-choice-count {
+        border: 1px solid var(--border-hover);
+        background: var(--accent-subtle);
+        color: var(--accent);
+    }
+
+    .ts-choice-scroll {
+        border: 1px solid var(--border-hover);
+        background: var(--bg-card);
+    }
+
+    .ts-choice-card:hover {
+        border-color: var(--border-hover);
+    }
+
+    .ts-choice-card--active {
+        border: 2px solid var(--accent);
+        background: var(--accent-subtle);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .ts-naas-chip {
+        border: 1px solid var(--border-hover);
+        background: var(--accent-subtle);
+        color: var(--accent);
+    }
+
+    .ts-loading-panel {
+        border: 1px solid var(--border-hover);
+        background: linear-gradient(155deg, var(--bg-input) 0%, var(--bg-input) 48%, var(--bg-card) 100%);
+    }
+
+    .ts-loading-panel__ring {
+        border-color: var(--accent-subtle);
+    }
+
+    .ts-loading-panel__core {
+        background: var(--accent);
+        box-shadow: 0 8px 18px var(--accent-subtle);
+    }
+
+    .ts-loading-panel__copy span {
+        color: var(--accent);
+    }
+}
+
 @media (max-width: 860px) {
     .ts-console {
         width: 100%;
