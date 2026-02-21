@@ -126,11 +126,15 @@ export function usePersistentNetappSocket(onMessage, wsPath = DEFAULT_WS_PATH) {
     ), [sendMessage]);
 
     return {
-        connectionState,
-        isConnected: connectionState === 'open',
-        sendMessage,
-        connectSession,
-        sendCommand,
-        socketUrl,
+        state: {
+            connectionState,
+            isConnected: connectionState === 'open',
+            socketUrl,
+        },
+        actions: {
+            sendMessage,
+            connectSession,
+            sendCommand,
+        },
     };
 }

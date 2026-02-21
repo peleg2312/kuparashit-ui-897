@@ -1,123 +1,64 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HiDatabase, HiRefresh, HiSearch, HiServer, HiX } from 'react-icons/hi';
-import { mainApi, troubleshooterApi } from '../api';
-import { normalizeNetappMachine } from '../utils/netappMachineMeta';
+import { HiRefresh, HiSearch } from 'react-icons/hi';
+import { troubleshooterApi } from '@/api';
+import TroubleshooterChoiceField from '@/components/Troubleshooter/TroubleshooterChoiceField';
+import TroubleshooterLoadingPanel from '@/components/Troubleshooter/TroubleshooterLoadingPanel';
+import TroubleshooterResultPopup from '@/components/Troubleshooter/TroubleshooterResultPopup';
+import { TROUBLESHOOTER_MODE_CONFIG } from '@/config/troubleshooterModes';
+import { useElapsedTimer } from '@/hooks/useElapsedTimer';
+import { useTroubleshooterOptions } from '@/hooks/useTroubleshooterOptions';
+import { formatJsonOutput, parseNaasInput } from '@/utils/troubleshooterUtils';
 import './TroubleshooterPage.css';
 
-const modeConfig = {
-    vc: {
-        key: 'vc',
-        label: 'vCenter',
-        icon: HiServer,
-        color: '#2b7fff',
-        subtitle: 'Scan environment via one vCenter.',
-    },
-    netapp: {
-        key: 'netapp',
-        label: 'NetApp',
-        icon: HiSearch,
-        color: '#0f9d62',
-        subtitle: 'Scan environment via one NetApp machine.',
-    },
-    naas: {
-        key: 'naas',
-        label: 'NAAs',
-        icon: HiDatabase,
-        color: '#d2871f',
-        subtitle: 'Scan environment via NAA list.',
-    },
-};
-
-function parseNaasInput(rawValue) {
-    return [...new Set(
-        String(rawValue || '')
-            .split(/[,\n\s]+/g)
-            .map((item) => item.trim())
-            .filter(Boolean),
-    )];
-}
-
-function formatJsonOutput(value) {
-    if (typeof value === 'string') return value;
-    if (value == null) return '';
-    try {
-        return JSON.stringify(value, null, 2);
-    } catch {
-        return String(value);
-    }
-}
-
-function ResultPopup({ title, result, color, onClose }) {
+function ModeTabs({ activeModeKey, running, onSelectMode }) {
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content ts-result-modal animate-scale" onClick={(event) => event.stopPropagation()}>
-                <div className="modal-header">
-                    <div>
-                        <h2 className="modal-title">{title}</h2>
-                        <p className="page-subtitle">Troubleshooter response JSON</p>
-                    </div>
-                    <button className="btn-icon" onClick={onClose}>
-                        <HiX size={18} />
+        <div className="ts-mode-tabs">
+            {Object.values(TROUBLESHOOTER_MODE_CONFIG).map((mode) => {
+                const ModeIcon = mode.icon;
+                const isActive = activeModeKey === mode.key;
+                return (
+                    <button
+                        key={mode.key}
+                        type="button"
+                        className={`ts-mode-tab ${isActive ? 'ts-mode-tab--active' : ''}`}
+                        style={isActive ? { borderColor: mode.color, color: mode.color } : {}}
+                        disabled={running}
+                        onClick={() => onSelectMode(mode.key)}
+                    >
+                        <span className="ts-mode-tab__dot" style={{ background: mode.color }} />
+                        <ModeIcon size={16} />
+                        {mode.label}
                     </button>
-                </div>
-
-                <div className="ts-result-modal__body" style={{ borderColor: color }}>
-                    <pre>{result}</pre>
-                </div>
-
-                <div className="modal-footer">
-                    <button className="btn btn-primary" style={{ background: color }} onClick={onClose}>
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function ModeLoadingPanel({ mode, elapsedMs = 0 }) {
-    const seconds = (elapsedMs / 1000).toFixed(1);
-    return (
-        <div className="ts-loading-panel" style={{ '--ts-accent': mode.color }}>
-            <div className="ts-loading-panel__scanner" aria-hidden="true">
-                <span className="ts-loading-panel__ring ts-loading-panel__ring--outer" />
-                <span className="ts-loading-panel__ring ts-loading-panel__ring--inner" />
-                <span className="ts-loading-panel__core">
-                    <HiRefresh size={16} className="animate-spin" />
-                </span>
-            </div>
-            <div className="ts-loading-panel__copy">
-                <h3>Running {mode.label} diagnostics</h3>
-                <p>Analyzing environment signals and collecting findings...</p>
-                <span>{seconds}s elapsed</span>
-            </div>
+                );
+            })}
         </div>
     );
 }
 
 export default function TroubleshooterPage() {
     const [activeModeKey, setActiveModeKey] = useState('vc');
-    const [vcOptions, setVcOptions] = useState([]);
-    const [netappOptions, setNetappOptions] = useState([]);
     const [vcSearch, setVcSearch] = useState('');
     const [netappSearch, setNetappSearch] = useState('');
-    const [loadingOptions, setLoadingOptions] = useState(true);
-    const [optionsError, setOptionsError] = useState('');
-
     const [values, setValues] = useState({
         vc_name: '',
         netapp_name: '',
         naas_raw: '',
     });
-
     const [running, setRunning] = useState(false);
-    const [runStartedAt, setRunStartedAt] = useState(0);
-    const [elapsedMs, setElapsedMs] = useState(0);
     const [runError, setRunError] = useState('');
     const [resultModal, setResultModal] = useState(null);
 
-    const activeMode = modeConfig[activeModeKey];
+    const activeMode = TROUBLESHOOTER_MODE_CONFIG[activeModeKey];
     const ActiveIcon = activeMode.icon;
+    const elapsedMs = useElapsedTimer(running);
+
+    const {
+        vcOptions,
+        netappOptions,
+        loadingOptions,
+        optionsError,
+    } = useTroubleshooterOptions();
+
     const parsedNaas = useMemo(() => parseNaasInput(values.naas_raw), [values.naas_raw]);
     const naasCount = parsedNaas.length;
     const filteredVcOptions = useMemo(
@@ -130,62 +71,17 @@ export default function TroubleshooterPage() {
     );
 
     useEffect(() => {
-        if (!running || !runStartedAt) return undefined;
+        if (!vcOptions.length && !netappOptions.length) return;
+        setValues((prev) => ({
+            ...prev,
+            vc_name: prev.vc_name || vcOptions[0] || '',
+            netapp_name: prev.netapp_name || netappOptions[0] || '',
+        }));
+    }, [netappOptions, vcOptions]);
 
-        const timerId = window.setInterval(() => {
-            setElapsedMs(Date.now() - runStartedAt);
-        }, 120);
-
-        return () => window.clearInterval(timerId);
-    }, [running, runStartedAt]);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const loadOptions = async () => {
-            setLoadingOptions(true);
-            setOptionsError('');
-            try {
-                const [vcenters, netapps] = await Promise.all([
-                    mainApi.getVCenters(),
-                    mainApi.getNetappMachines(),
-                ]);
-                if (cancelled) return;
-
-                const vcList = Array.isArray(vcenters)
-                    ? vcenters.map((item) => String(item || '').trim()).filter(Boolean)
-                    : [];
-                const netappList = Array.isArray(netapps)
-                    ? netapps.map((item, index) => normalizeNetappMachine(item, index).name).filter(Boolean)
-                    : [];
-
-                setVcOptions(vcList);
-                setNetappOptions(netappList);
-                setValues((prev) => ({
-                    ...prev,
-                    vc_name: prev.vc_name || vcList[0] || '',
-                    netapp_name: prev.netapp_name || netappList[0] || '',
-                }));
-            } catch (error) {
-                if (!cancelled) {
-                    setOptionsError(error?.message || 'Failed to load vCenter/NetApp options.');
-                }
-            } finally {
-                if (!cancelled) setLoadingOptions(false);
-            }
-        };
-
-        loadOptions();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    const handleRun = async () => {
+    const runTroubleshooter = async () => {
         setRunError('');
         setRunning(true);
-        setRunStartedAt(Date.now());
-        setElapsedMs(0);
         try {
             let response = null;
             let title = '';
@@ -214,7 +110,6 @@ export default function TroubleshooterPage() {
             setRunError(error?.message || 'Troubleshooter run failed.');
         } finally {
             setRunning(false);
-            setRunStartedAt(0);
         }
     };
 
@@ -236,29 +131,14 @@ export default function TroubleshooterPage() {
                             <h2>Choose a Troubleshooter flow</h2>
                             <p>Run one focused diagnostic route at a time and inspect the JSON result in popup.</p>
                         </div>
-                        <div className="ts-mode-tabs">
-                            {Object.values(modeConfig).map((mode) => {
-                                const ModeIcon = mode.icon;
-                                const isActive = activeModeKey === mode.key;
-                                return (
-                                    <button
-                                        key={mode.key}
-                                        type="button"
-                                        className={`ts-mode-tab ${isActive ? 'ts-mode-tab--active' : ''}`}
-                                        style={isActive ? { borderColor: mode.color, color: mode.color } : {}}
-                                        disabled={running}
-                                        onClick={() => {
-                                            setActiveModeKey(mode.key);
-                                            setRunError('');
-                                        }}
-                                    >
-                                        <span className="ts-mode-tab__dot" style={{ background: mode.color }} />
-                                        <ModeIcon size={16} />
-                                        {mode.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <ModeTabs
+                            activeModeKey={activeModeKey}
+                            running={running}
+                            onSelectMode={(modeKey) => {
+                                setActiveModeKey(modeKey);
+                                setRunError('');
+                            }}
+                        />
                     </section>
 
                     <section
@@ -280,97 +160,41 @@ export default function TroubleshooterPage() {
 
                         <div className="ts-workspace__body">
                             {running ? (
-                                <ModeLoadingPanel mode={activeMode} elapsedMs={elapsedMs} />
+                                <TroubleshooterLoadingPanel mode={activeMode} elapsedMs={elapsedMs} />
                             ) : (
                                 <>
                                     {activeModeKey === 'vc' && (
-                                        <div className="ts-field ts-input-block">
-                                            <label className="ts-label">Choose vCenter</label>
-                                            <div className="ts-choice-toolbar">
-                                                <input
-                                                    type="text"
-                                                    className="input-field ts-choice-search"
-                                                    value={vcSearch}
-                                                    onChange={(event) => setVcSearch(event.target.value)}
-                                                    placeholder="Search vCenter..."
-                                                    disabled={loadingOptions || !vcOptions.length}
-                                                />
-                                                <span className="ts-choice-count">
-                                                    {filteredVcOptions.length}/{vcOptions.length}
-                                                </span>
-                                            </div>
-                                            {vcOptions.length ? (
-                                                filteredVcOptions.length ? (
-                                                    <div className="ts-choice-scroll">
-                                                        <div className="ts-choice-grid">
-                                                            {filteredVcOptions.map((vcName) => {
-                                                                const selected = values.vc_name === vcName;
-                                                                return (
-                                                                    <button
-                                                                        key={vcName}
-                                                                        type="button"
-                                                                        className={`ts-choice-card ${selected ? 'ts-choice-card--active' : ''}`}
-                                                                        onClick={() => setValues((prev) => ({ ...prev, vc_name: vcName }))}
-                                                                    >
-                                                                        <span className="ts-choice-card__title">{vcName}</span>
-                                                                        <span className="ts-choice-card__meta">Target vCenter</span>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="ts-empty-state">No vCenter matches your search.</div>
-                                                )
-                                            ) : (
-                                                <div className="ts-empty-state">No vCenter options available.</div>
-                                            )}
-                                        </div>
+                                        <TroubleshooterChoiceField
+                                            label="Choose vCenter"
+                                            searchValue={vcSearch}
+                                            onSearchChange={setVcSearch}
+                                            options={vcOptions}
+                                            filteredOptions={filteredVcOptions}
+                                            selectedValue={values.vc_name}
+                                            onSelectOption={(value) => setValues((prev) => ({ ...prev, vc_name: value }))}
+                                            loadingOptions={loadingOptions}
+                                            searchPlaceholder="Search vCenter..."
+                                            emptyAllText="No vCenter options available."
+                                            emptyFilteredText="No vCenter matches your search."
+                                            optionMetaLabel="Target vCenter"
+                                        />
                                     )}
 
                                     {activeModeKey === 'netapp' && (
-                                        <div className="ts-field ts-input-block">
-                                            <label className="ts-label">Choose NetApp</label>
-                                            <div className="ts-choice-toolbar">
-                                                <input
-                                                    type="text"
-                                                    className="input-field ts-choice-search"
-                                                    value={netappSearch}
-                                                    onChange={(event) => setNetappSearch(event.target.value)}
-                                                    placeholder="Search NetApp..."
-                                                    disabled={loadingOptions || !netappOptions.length}
-                                                />
-                                                <span className="ts-choice-count">
-                                                    {filteredNetappOptions.length}/{netappOptions.length}
-                                                </span>
-                                            </div>
-                                            {netappOptions.length ? (
-                                                filteredNetappOptions.length ? (
-                                                    <div className="ts-choice-scroll">
-                                                        <div className="ts-choice-grid">
-                                                            {filteredNetappOptions.map((netappName) => {
-                                                                const selected = values.netapp_name === netappName;
-                                                                return (
-                                                                    <button
-                                                                        key={netappName}
-                                                                        type="button"
-                                                                        className={`ts-choice-card ${selected ? 'ts-choice-card--active' : ''}`}
-                                                                        onClick={() => setValues((prev) => ({ ...prev, netapp_name: netappName }))}
-                                                                    >
-                                                                        <span className="ts-choice-card__title">{netappName}</span>
-                                                                        <span className="ts-choice-card__meta">Target NetApp</span>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="ts-empty-state">No NetApp matches your search.</div>
-                                                )
-                                            ) : (
-                                                <div className="ts-empty-state">No NetApp options available.</div>
-                                            )}
-                                        </div>
+                                        <TroubleshooterChoiceField
+                                            label="Choose NetApp"
+                                            searchValue={netappSearch}
+                                            onSearchChange={setNetappSearch}
+                                            options={netappOptions}
+                                            filteredOptions={filteredNetappOptions}
+                                            selectedValue={values.netapp_name}
+                                            onSelectOption={(value) => setValues((prev) => ({ ...prev, netapp_name: value }))}
+                                            loadingOptions={loadingOptions}
+                                            searchPlaceholder="Search NetApp..."
+                                            emptyAllText="No NetApp options available."
+                                            emptyFilteredText="No NetApp matches your search."
+                                            optionMetaLabel="Target NetApp"
+                                        />
                                     )}
 
                                     {activeModeKey === 'naas' && (
@@ -405,7 +229,7 @@ export default function TroubleshooterPage() {
                             <button
                                 type="button"
                                 className="btn btn-primary ts-run-btn"
-                                onClick={handleRun}
+                                onClick={runTroubleshooter}
                                 disabled={running || loadingOptions}
                                 style={{ background: activeMode.color }}
                             >
@@ -427,7 +251,7 @@ export default function TroubleshooterPage() {
             </div>
 
             {resultModal && (
-                <ResultPopup
+                <TroubleshooterResultPopup
                     title={resultModal.title}
                     result={resultModal.result}
                     color={resultModal.color}

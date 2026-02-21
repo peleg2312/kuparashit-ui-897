@@ -18,6 +18,7 @@ import HerziToolsPage from './pages/HerziToolsPage';
 import NetappUpgradePage from './pages/NetappUpgradePage';
 import NetappMultiExecPage from './pages/NetappMultiExecPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
+import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import './App.css';
 
@@ -31,9 +32,10 @@ function AppLoading() {
 }
 
 function HomeRedirect() {
+  const { isAdmin } = useAuth();
   const { currentTeam } = useTeam();
   const allowed = currentTeam?.screens || [];
-  const groups = getScreensByGroup(allowed);
+  const groups = getScreensByGroup(allowed, { isAdmin });
   const firstGroup = Object.values(groups)[0];
   const path = firstGroup?.screens?.[0]?.path || '/dashboard/rdm';
   return <Navigate to={path} replace />;
@@ -64,9 +66,9 @@ function ProtectedLayout() {
   );
 }
 
-function PermissionRoute({ screenId, children }) {
+function PermissionRoute({ screenId, requireAdmin = false, children }) {
   const { isAllowed } = useTeam();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
   if (isLoading) {
     return <AppLoading />;
@@ -74,6 +76,10 @@ function PermissionRoute({ screenId, children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <UnauthorizedPage />;
   }
 
   if (screenId && !isAllowed(screenId)) {
@@ -136,6 +142,9 @@ export default function App() {
               } />
               <Route path="/netapp-multi-exec" element={
                 <PermissionRoute screenId="netapp-multi-exec"><NetappMultiExecPage /></PermissionRoute>
+              } />
+              <Route path="/admin/user-management" element={
+                <PermissionRoute screenId="user-management" requireAdmin><UserManagementPage /></PermissionRoute>
               } />
 
               {/* Fallback */}

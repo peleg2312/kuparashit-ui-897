@@ -22,8 +22,7 @@ export default function ObjectUrlCell({ value }) {
     return (
         <div>
             <button
-                className="btn btn-secondary"
-                style={{ minHeight: 32, padding: '6px 10px', width: 'fit-content', fontSize: '0.78rem' }}
+                className="btn dt-open-url-btn"
                 onClick={handleOpen}
             >
                 Open URL

@@ -1,7 +1,7 @@
 import {
     HiServer, HiDatabase, HiChip, HiDesktopComputer,
     HiSwitchHorizontal, HiCollection, HiUpload,
-    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch, HiCode
+    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch, HiCode, HiUserGroup
 } from 'react-icons/hi';
 
 const screens = [
@@ -23,14 +23,25 @@ const screens = [
     { id: 'herzitools', label: 'Herzi Tools', path: '/herzi-tools', icon: HiCog, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'netapp-upgrade', label: 'NetApp Upgrade', path: '/netapp-upgrade', icon: HiTerminal, group: 'netapp', groupLabel: 'NetApp Operations' },
     { id: 'netapp-multi-exec', label: 'NetApp Multi Exec', path: '/netapp-multi-exec', icon: HiLightningBolt, group: 'netapp', groupLabel: 'NetApp Operations' },
+    {
+        id: 'user-management',
+        label: 'User Management',
+        path: '/admin/user-management',
+        icon: HiUserGroup,
+        group: 'admin',
+        groupLabel: 'Administration',
+        adminOnly: true,
+    },
 ];
 
 export default screens;
 
-export function getScreensByGroup(allowedScreenIds) {
-    const filtered = allowedScreenIds.includes('*')
+export function getScreensByGroup(allowedScreenIds, { isAdmin = false } = {}) {
+    const filteredByPermissions = allowedScreenIds.includes('*')
         ? screens
         : screens.filter(s => allowedScreenIds.includes(s.id));
+
+    const filtered = filteredByPermissions.filter((screen) => !screen.adminOnly || isAdmin);
 
     const groups = {};
     filtered.forEach(screen => {

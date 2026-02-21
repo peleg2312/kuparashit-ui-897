@@ -1,4 +1,6 @@
-import { exchApi, kprApi, mainApi } from '../api';
+import { exchApi, kprApi, mainApi } from '../../api';
+import { isParamVisible } from '../visibilityRules';
+import { asArray, isEmpty } from './common';
 
 const dropdownApiByName = {
     main: mainApi,
@@ -9,23 +11,6 @@ const dropdownApiByName = {
 const DROPDOWN_CACHE_TTL_MS = 30_000;
 const DROPDOWN_RESPONSE_CACHE = new Map();
 const DROPDOWN_INFLIGHT_REQUESTS = new Map();
-
-function isEmpty(value) {
-    return value === undefined
-        || value === ''
-        || value === null
-        || (Array.isArray(value) && value.length === 0);
-}
-
-function getEmptyValueForParam(param) {
-    if (param.type === 'toggle') return false;
-    return param.multi ? [] : '';
-}
-
-function asArray(value) {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-}
 
 function normalizeDependencyValue(value) {
     if (Array.isArray(value)) return value.join(',');
@@ -190,66 +175,14 @@ function normalizeDropdownRows(rawOptions, param, queryParams) {
     }).filter((item) => item.value);
 }
 
-export function isParamVisible(param, values) {
-    const rule = param?.visibleWhen;
-    if (!rule) return true;
-
-    if (rule.field) {
-        const currentValue = values?.[rule.field];
-        if (Object.prototype.hasOwnProperty.call(rule, 'equals')) {
-            return currentValue === rule.equals;
-        }
-        if (Array.isArray(rule.in)) {
-            return rule.in.includes(currentValue);
-        }
-    }
-
-    if (typeof rule === 'object') {
-        return Object.entries(rule).every(([field, expected]) => {
-            if (field === 'field' || field === 'equals' || field === 'in') return true;
-            const currentValue = values?.[field];
-            return Array.isArray(expected) ? expected.includes(currentValue) : currentValue === expected;
-        });
-    }
-
-    return true;
-}
-
-export function applyFieldChange(currentValues, action, name, value) {
-    const next = { ...currentValues, [name]: value };
-    action.params.forEach((param) => {
-        const dependencies = asArray(param.dependsOn);
-        if (dependencies.includes(name)) {
-            next[param.name] = getEmptyValueForParam(param);
-        }
-    });
-    action.params.forEach((param) => {
-        if (!isParamVisible(param, next)) {
-            next[param.name] = getEmptyValueForParam(param);
-        }
-    });
-    return next;
-}
-
-export function validateActionValues(action, values) {
-    const errors = {};
-
-    action.params.forEach((param) => {
-        if (!isParamVisible(param, values)) return;
-        const value = values[param.name];
-        if (param.required && isEmpty(value)) {
-            errors[param.name] = `${param.label} is required`;
-        }
-        if (param.type === 'number' && value !== '' && value != null) {
-            const number = Number(value);
-            if (param.min != null && number < param.min) errors[param.name] = `Min value is ${param.min}`;
-            if (param.max != null && number > param.max) errors[param.name] = `Max value is ${param.max}`;
-        }
-    });
-
-    return errors;
-}
-
+/**
+ * Load and normalize dropdown-api options for an action form.
+ * Includes request de-duplication and short-lived cache.
+ *
+ * @param {object} action
+ * @param {object} values
+ * @returns {Promise<Record<string, Array>>}
+ */
 export async function loadDropdownOptions(action, values) {
     if (!action) return {};
 

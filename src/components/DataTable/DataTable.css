@@ -207,6 +207,22 @@
     transform: translateY(-1px);
 }
 
+.dt-open-url-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+    width: fit-content;
+    font-size: 0.78rem;
+    border: 1px solid color-mix(in srgb, var(--info), var(--border) 45%);
+    background: color-mix(in srgb, var(--info-bg), var(--bg-card) 28%);
+    color: var(--info);
+}
+
+.dt-open-url-btn:hover {
+    background: color-mix(in srgb, var(--info), #fff 86%);
+    color: color-mix(in srgb, var(--info), #000 8%);
+    box-shadow: 0 8px 16px color-mix(in srgb, var(--info), transparent 78%);
+}
+
 .checkbox {
     width: 17px;
     height: 17px;

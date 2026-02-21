@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTeam } from '../../contexts/TeamContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { getScreensByGroup } from '../../config/screens';
 import { HiMenuAlt2, HiShoppingCart } from 'react-icons/hi';
 import './Sidebar.css';
@@ -8,10 +9,14 @@ import './Sidebar.css';
 export default function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const { currentTeam } = useTeam();
+    const { isAdmin } = useAuth();
     const location = useLocation();
 
     const allowedScreens = currentTeam ? currentTeam.screens : [];
-    const groups = getScreensByGroup(allowedScreens);
+    const screensForSidebar = isAdmin && !allowedScreens.includes('user-management')
+        ? [...allowedScreens, 'user-management']
+        : allowedScreens;
+    const groups = getScreensByGroup(screensForSidebar, { isAdmin });
 
     return (
         <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>

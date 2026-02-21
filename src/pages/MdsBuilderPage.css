@@ -3,12 +3,12 @@
 }
 
 .mds-page {
-    width: min(1320px, 100%);
+    width: min(1600px, 100%);
     margin: 0 auto;
     display: grid;
     grid-template-rows: auto auto;
-    gap: 14px;
-    padding-bottom: 8px;
+    gap: 10px;
+    padding-bottom: 6px;
 }
 
 .mds-error {
@@ -23,15 +23,63 @@
 .mds-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
+    align-items: start;
+}
+
+.mds-pair-card {
+    padding: 10px 12px;
+    border-radius: var(--radius-lg);
+    display: grid;
+    gap: 10px;
+}
+
+.mds-pair-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.mds-pair-card__title-wrap {
+    display: grid;
+    gap: 4px;
+}
+
+.mds-pair-card__title-wrap h3 {
+    font-size: 0.94rem;
+    font-weight: 800;
+}
+
+.mds-pair-card__title-wrap p {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.mds-pair-card__count {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-input);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    white-space: nowrap;
+}
+
+.mds-pair-card__hosts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     align-items: start;
 }
 
 .mds-card {
-    padding: 14px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     border-radius: var(--radius-lg);
     overflow: visible;
 }
@@ -42,7 +90,7 @@
 
 .mds-card--core {
     border: 1px solid color-mix(in srgb, var(--info), var(--border) 72%);
-    padding: 12px 14px 10px;
+    padding: 10px;
     gap: 6px;
 }
 
@@ -53,14 +101,14 @@
 }
 
 .mds-card__header h3 {
-    font-size: 0.98rem;
+    font-size: 0.9rem;
     font-weight: 800;
 }
 
 .mds-card__icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -70,23 +118,34 @@
 
 .mds-field {
     display: grid;
-    gap: 6px;
+    gap: 4px;
 }
 
 .mds-field--ports {
     margin-top: 2px;
 }
 
-.mds-card .input-field {
-    min-height: 42px;
-    padding: 10px 12px;
-    font-size: 0.9rem;
+.mds-pair-card .input-field {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 0.84rem;
 }
 
 .mds-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
     font-weight: 800;
+}
+
+.mds-port-prefix-note {
+    margin: 0;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+}
+
+.mds-port-prefix-note code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
 }
 
 .mds-port-input-row {
@@ -95,54 +154,95 @@
     gap: 8px;
 }
 
-.mds-port-add-btn {
-    min-height: 42px;
+.mds-port-input-row--pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
 }
 
-.mds-port-list {
+.mds-port-add-btn {
+    min-height: 38px;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    padding-inline: 10px;
+}
+
+.mds-port-pair-list {
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--bg-input);
-    min-height: 40px;
-    overflow: visible;
+    min-height: 38px;
+    max-height: 168px;
+    overflow: auto;
     padding: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
+    display: grid;
+    gap: 5px;
+}
+
+.mds-port-empty {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.mds-port-pair-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    align-items: center;
     gap: 6px;
 }
 
-.mds-card--small .mds-port-list {
-    min-height: 48px;
+.mds-port-pair-row--mismatch {
+    border: 1px solid color-mix(in srgb, var(--error), transparent 64%);
+    background: color-mix(in srgb, var(--error), transparent 92%);
+    border-radius: 10px;
+    padding: 4px 6px;
 }
 
-.mds-card--core .mds-port-list {
-    min-height: 38px;
-    margin-bottom: 8px;
-    padding: 5px 6px;
+.mds-port-pair-index {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    font-weight: 700;
 }
 
-.mds-card--core .mds-field--ports {
-    padding-bottom: 6px;
+.mds-port-pair-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    font-weight: 700;
 }
 
 .mds-port-chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
     border: 1px solid color-mix(in srgb, var(--accent), var(--border) 72%);
-    border-radius: 999px;
+    border-radius: 8px;
     background: color-mix(in srgb, var(--accent), transparent 90%);
     color: color-mix(in srgb, var(--accent), var(--text-primary) 35%);
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    padding: 3px 8px;
+    min-height: 24px;
+    padding: 2px 8px;
+    text-align: center;
+    word-break: break-word;
+}
+
+.mds-port-chip--small {
+    border-color: color-mix(in srgb, var(--accent), var(--border) 72%);
+    background: color-mix(in srgb, var(--accent), transparent 90%);
+    color: color-mix(in srgb, var(--accent), var(--text-primary) 35%);
+}
+
+.mds-port-chip--core {
+    border-color: color-mix(in srgb, var(--info), var(--border) 72%);
+    background: color-mix(in srgb, var(--info), transparent 90%);
+    color: color-mix(in srgb, var(--info), var(--text-primary) 35%);
 }
 
 .mds-port-chip__remove {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--error), transparent 84%);
     color: var(--error);
@@ -233,15 +333,39 @@
     .mds-grid {
         grid-template-columns: 1fr;
     }
+
+    .mds-pair-card__hosts {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 640px) {
     .mds-card {
-        padding: 14px;
+        padding: 10px;
     }
 
-    .mds-port-input-row {
+    .mds-port-input-row,
+    .mds-port-input-row--pair {
         grid-template-columns: 1fr;
+    }
+
+    .mds-port-pair-row {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+        justify-items: start;
+    }
+
+    .mds-port-pair-arrow {
+        display: none;
+    }
+
+    .mds-port-chip {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .mds-port-chip__remove {
+        justify-self: end;
     }
 
     .mds-header-actions {

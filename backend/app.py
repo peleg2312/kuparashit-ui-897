@@ -53,7 +53,7 @@ USERS_DB: list[dict[str, Any]] = [
         "name": "Admin User",
         "email": "admin@company.com",
         "role": "admin",
-        "teams": ["BLOCK", "NASA","Shimiada","Vans"],
+        "teams": ["BLOCK", "NASA", "Shimiada", "Vans"],
         "avatar": None,
         "password_hash": pwd_context.hash("admin123"),
     },
@@ -89,6 +89,9 @@ USERS_DB: list[dict[str, Any]] = [
     },
 ]
 
+ADMIN_PERMISSION_ID = "isAdmin"
+USER_MANAGEMENT_PERMISSION_ID = "user-management"
+
 TEAM_PERMISSIONS = {
     "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder"],
     "NASA": ["qtree", "ds"],
@@ -106,6 +109,10 @@ TEAM_PERMISSION_FLAGS = {
     "Virtu": "isVirualizationAdmin",
     "Team49": "is49Client",
     "Orca": "isOrcaAdmin",
+}
+GROUP_PERMISSION_KEYS: dict[str, list[str]] = {
+    team_name: [permission_key]
+    for team_name, permission_key in TEAM_PERMISSION_FLAGS.items()
 }
 
 VC_META = {
@@ -580,6 +587,26 @@ class QtreePatchPayload(QtreeBasePayload):
     size_in_mb: int
 
 
+class AdminGroupCreatePayload(BaseModel):
+    name: str
+    permissionKeys: list[str]
+
+
+class AdminGroupUpdatePayload(BaseModel):
+    permissionKeys: list[str]
+
+
+class AdminUserCreatePayload(BaseModel):
+    username: str
+    password: str
+    teams: list[str]
+
+
+class AdminUserUpdatePayload(BaseModel):
+    teams: list[str] | None = None
+    password: str | None = None
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -606,8 +633,110 @@ def permissions_for_teams(teams: list[str]) -> list[str]:
 
 
 def all_known_teams() -> list[str]:
-    # Include every team that can be represented in auth flags.
-    return sorted(TEAM_PERMISSION_FLAGS.keys())
+    return sorted(TEAM_PERMISSIONS.keys())
+
+
+def permission_key_for_team(team_name: str) -> str:
+    return str(TEAM_PERMISSION_FLAGS.get(team_name, team_name)).strip()
+
+
+def all_known_permission_keys() -> list[str]:
+    return sorted(
+        {
+            str(permission_key).strip()
+            for permission_key in TEAM_PERMISSION_FLAGS.values()
+            if str(permission_key).strip()
+        },
+        key=lambda value: value.lower(),
+    )
+
+
+def resolve_team_name(team_or_permission_key: str) -> str | None:
+    normalized = str(team_or_permission_key or "").strip()
+    if not normalized:
+        return None
+
+    if normalized in TEAM_PERMISSIONS:
+        return normalized
+
+    lowered = normalized.lower()
+    for team_name in TEAM_PERMISSIONS.keys():
+        if str(team_name).lower() == lowered:
+            return team_name
+
+    for team_name, permission_key in TEAM_PERMISSION_FLAGS.items():
+        if str(permission_key).strip().lower() == lowered:
+            return team_name
+
+    return None
+
+
+def normalize_team_list(values: list[str] | None, *, field_name: str = "teams", strict: bool = True) -> list[str]:
+    normalized: list[str] = []
+    for value in values or []:
+        team_name = resolve_team_name(str(value or ""))
+        if not team_name:
+            if strict:
+                raise HTTPException(status_code=400, detail=f"Unknown {field_name} item: {value}")
+            continue
+        if team_name not in normalized:
+            normalized.append(team_name)
+    return normalized
+
+
+def normalize_permission_key_list(
+    values: list[str] | None,
+    *,
+    field_name: str = "permissionKeys",
+    strict: bool = True,
+) -> list[str]:
+    normalized: list[str] = []
+    for value in values or []:
+        team_name = resolve_team_name(str(value or ""))
+        if not team_name:
+            if strict:
+                raise HTTPException(status_code=400, detail=f"Unknown {field_name} item: {value}")
+            continue
+        permission_key = permission_key_for_team(team_name)
+        if permission_key and permission_key not in normalized:
+            normalized.append(permission_key)
+    return normalized
+
+
+def permissions_for_permission_keys(permission_keys: list[str]) -> list[str]:
+    merged: set[str] = set()
+    for permission_key in permission_keys:
+        team_name = resolve_team_name(permission_key)
+        if team_name:
+            merged.update(TEAM_PERMISSIONS.get(team_name, []))
+    return sorted(merged)
+
+
+def ensure_group_permission_flag(group_name: str) -> str:
+    existing = str(TEAM_PERMISSION_FLAGS.get(group_name, "")).strip()
+    if existing:
+        return existing
+
+    stem = "".join(ch for ch in str(group_name or "") if ch.isalnum())
+    base = f"is{stem}" if stem else f"isGroup{uuid4().hex[:6]}"
+    used = {str(value).strip().lower() for value in TEAM_PERMISSION_FLAGS.values() if str(value).strip()}
+
+    candidate = base
+    index = 2
+    while candidate.lower() in used:
+        candidate = f"{base}{index}"
+        index += 1
+
+    TEAM_PERMISSION_FLAGS[group_name] = candidate
+    return candidate
+
+
+def all_known_permissions() -> list[str]:
+    merged: set[str] = set()
+    for values in TEAM_PERMISSIONS.values():
+        merged.update(str(permission).strip() for permission in values if str(permission).strip())
+    merged.add(USER_MANAGEMENT_PERMISSION_ID)
+    return sorted(merged)
 
 
 def is_admin_user(user: dict[str, Any] | None) -> bool:
@@ -617,16 +746,57 @@ def is_admin_user(user: dict[str, Any] | None) -> bool:
 def effective_user_teams(user: dict[str, Any]) -> list[str]:
     if is_admin_user(user):
         return all_known_teams()
-    return [str(team).strip() for team in user.get("teams", []) if str(team).strip()]
+    return normalize_team_list(user.get("teams", []), strict=False)
+
+
+def effective_user_permissions(user: dict[str, Any], teams: list[str] | None = None) -> list[str]:
+    team_list = teams if teams is not None else effective_user_teams(user)
+    merged = set(permissions_for_teams(team_list))
+    if is_admin_user(user):
+        merged.update(all_known_permissions())
+        merged.add(ADMIN_PERMISSION_ID)
+    return sorted(merged)
+
+
+def require_admin_user(request: Request) -> dict[str, Any]:
+    user = current_user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if not is_admin_user(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def find_user_by_id(user_id: str) -> dict[str, Any] | None:
+    normalized = str(user_id or "").strip()
+    if not normalized:
+        return None
+    return next((user for user in USERS_DB if user["id"] == normalized), None)
+
+
+def find_user_by_id_or_username(user_ref: str) -> dict[str, Any] | None:
+    normalized = str(user_ref or "").strip()
+    if not normalized:
+        return None
+
+    by_id = find_user_by_id(normalized)
+    if by_id:
+        return by_id
+
+    lowered = normalized.lower()
+    return next((user for user in USERS_DB if user["username"].lower() == lowered), None)
 
 
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
+    teams = effective_user_teams(user)
     return {
         "id": user["id"],
+        "username": user["username"],
         "name": user["name"],
         "email": user["email"],
-        "role": user["role"],
-        "teams": effective_user_teams(user),
+        "teams": teams,
+        "teamPermissionKeys": normalize_permission_key_list(teams, strict=False),
+        "effectivePermissions": effective_user_permissions(user, teams),
         "avatar": user.get("avatar"),
     }
 
@@ -1252,6 +1422,39 @@ def build_demo_output_text(command: str, machine: str, username: str) -> str:
     return "\n".join(build_demo_output_lines(command, machine, username))
 
 
+def resolve_group_name(group_name: str) -> str | None:
+    return resolve_team_name(group_name)
+
+
+def serialize_admin_group(group_name: str) -> dict[str, Any]:
+    permissions = TEAM_PERMISSIONS.get(group_name, [])
+    permission_key = permission_key_for_team(group_name)
+    permission_keys = GROUP_PERMISSION_KEYS.get(group_name, [permission_key])
+    user_count = sum(1 for user in USERS_DB if group_name in user.get("teams", []))
+    return {
+        "name": group_name,
+        "permissionKey": permission_key,
+        "permissionKeys": normalize_permission_key_list(permission_keys, strict=False),
+        "screens": permissions,
+        "screenCount": len(permissions),
+        "userCount": user_count,
+    }
+
+
+def serialize_admin_user(user: dict[str, Any]) -> dict[str, Any]:
+    assigned_groups = normalize_team_list(user.get("teams", []), strict=False)
+    effective_permissions = effective_user_permissions(user)
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "name": user["name"],
+        "email": user["email"],
+        "teams": normalize_permission_key_list(assigned_groups, strict=False),
+        "teamNames": assigned_groups,
+        "effectivePermissions": effective_permissions,
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "time": now_iso()}
@@ -1288,19 +1491,22 @@ def login_auth_upload(payload: AuthUploadPayload, response: Response) -> dict[st
 
 
 @app.get("/auth_check/{token}")
-def auth_check_contract(request: Request, token: str, teams: list[str] | None = None) -> dict[str, bool]:
+def auth_check_contract(request: Request, token: str, teams: list[str] | None = None) -> dict[str, Any]:
     user = validate_token(token)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     if is_admin_user(user):
-        return build_team_access_map(all_known_teams())
+        team_list = all_known_teams()
+    else:
+        team_list = parse_team_list(request, teams)
+        if not team_list:
+            team_list = effective_user_teams(user)
 
-    team_list = parse_team_list(request, teams)
-    if not team_list:
-        team_list = effective_user_teams(user)
-
-    return build_team_access_map(team_list)
+    return {
+        "teams": team_list,
+        "permissions": effective_user_permissions(user, team_list),
+    }
 
 
 @app.post("/auth/login/local")
@@ -1322,7 +1528,7 @@ def login_local(payload: LocalLoginPayload, response: Response) -> dict[str, Any
         "user": user_public,
         "authMode": "local",
         "teams": teams,
-        "permissions": permissions_for_teams(teams),
+        "permissions": effective_user_permissions(user, teams),
     }
 
 
@@ -1338,7 +1544,7 @@ def login_adfs(response: Response) -> dict[str, Any]:
         "user": user_public,
         "authMode": "adfs",
         "teams": teams,
-        "permissions": permissions_for_teams(teams),
+        "permissions": effective_user_permissions(user, teams),
     }
 
 
@@ -1354,20 +1560,23 @@ def session(request: Request) -> Any:
         "user": user_public,
         "authMode": "cookie",
         "teams": teams,
-        "permissions": permissions_for_teams(teams),
+        "permissions": effective_user_permissions(user, teams),
     }
 
 
 @app.get("/auth/permissions")
 def auth_permissions(request: Request, teams: list[str] | None = None) -> dict[str, Any]:
     user = current_user_from_request(request)
+    if not user:
+        return {"teams": [], "permissions": []}
+
     if is_admin_user(user):
         team_list = all_known_teams()
     else:
         team_list = parse_team_list(request, teams)
-        if not team_list and user:
+        if not team_list:
             team_list = effective_user_teams(user)
-    return {"teams": team_list, "permissions": permissions_for_teams(team_list)}
+    return {"teams": team_list, "permissions": effective_user_permissions(user, team_list)}
 
 
 @app.post("/auth/logout")
@@ -1446,6 +1655,140 @@ def get_exch_volumes() -> list[dict[str, Any]]:
 @app.get("/qtrees")
 def get_qtrees() -> list[dict[str, Any]]:
     return QTREES
+
+
+@app.get("/admin/permissions")
+def admin_permissions_catalog(request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+    return {
+        "permissionKeys": all_known_permission_keys(),
+        "permissions": all_known_permissions(),
+        "adminPermission": ADMIN_PERMISSION_ID,
+    }
+
+
+@app.get("/admin/groups")
+def admin_groups(request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+    groups = [
+        serialize_admin_group(group_name)
+        for group_name in sorted(TEAM_PERMISSIONS.keys(), key=lambda name: name.lower())
+    ]
+    return {"groups": groups}
+
+
+@app.post("/admin/groups")
+def admin_create_group(payload: AdminGroupCreatePayload, request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+    group_name = str(payload.name or "").strip()
+    if not group_name:
+        raise HTTPException(status_code=400, detail="Group name is required")
+
+    if resolve_group_name(group_name):
+        raise HTTPException(status_code=409, detail="Group already exists")
+
+    ensure_group_permission_flag(group_name)
+    permission_keys = normalize_permission_key_list(payload.permissionKeys)
+    GROUP_PERMISSION_KEYS[group_name] = permission_keys
+    TEAM_PERMISSIONS[group_name] = permissions_for_permission_keys(permission_keys)
+    return serialize_admin_group(group_name)
+
+
+@app.put("/admin/groups/{group_name}")
+def admin_update_group(group_name: str, payload: AdminGroupUpdatePayload, request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+    resolved = resolve_group_name(group_name)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    permission_keys = normalize_permission_key_list(payload.permissionKeys)
+    GROUP_PERMISSION_KEYS[resolved] = permission_keys
+    TEAM_PERMISSIONS[resolved] = permissions_for_permission_keys(permission_keys)
+    return serialize_admin_group(resolved)
+
+
+@app.delete("/admin/groups/{group_name}")
+def admin_delete_group(group_name: str, request: Request) -> dict[str, bool]:
+    require_admin_user(request)
+    resolved = resolve_group_name(group_name)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    TEAM_PERMISSIONS.pop(resolved, None)
+    TEAM_PERMISSION_FLAGS.pop(resolved, None)
+    GROUP_PERMISSION_KEYS.pop(resolved, None)
+    for user in USERS_DB:
+        user["teams"] = [team for team in user.get("teams", []) if team != resolved]
+    return {"ok": True}
+
+
+@app.get("/admin/users")
+def admin_users(request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+    users = [serialize_admin_user(user) for user in sorted(USERS_DB, key=lambda item: item["username"].lower())]
+    return {"users": users}
+
+
+@app.post("/admin/users")
+def admin_create_user(payload: AdminUserCreatePayload, request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+
+    username = str(payload.username or "").strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    if find_user_by_username_or_email(username):
+        raise HTTPException(status_code=409, detail="Username already exists")
+
+    password = str(payload.password or "")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+
+    teams = normalize_team_list(payload.teams)
+
+    new_user = {
+        "id": f"u-{uuid4().hex[:10]}",
+        "username": username,
+        "name": username,
+        "email": f"{username}@company.com",
+        "role": "operator",
+        "teams": teams,
+        "avatar": None,
+        "password_hash": pwd_context.hash(password),
+    }
+    USERS_DB.append(new_user)
+    return serialize_admin_user(new_user)
+
+
+@app.put("/admin/users/{user_ref}")
+def admin_update_user(user_ref: str, payload: AdminUserUpdatePayload, request: Request) -> dict[str, Any]:
+    require_admin_user(request)
+
+    user = find_user_by_id_or_username(user_ref)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.teams is not None:
+        user["teams"] = normalize_team_list(payload.teams)
+
+    if payload.password is not None:
+        password = str(payload.password or "")
+        if not password:
+            raise HTTPException(status_code=400, detail="Password cannot be empty")
+        user["password_hash"] = pwd_context.hash(password)
+
+    return serialize_admin_user(user)
+
+
+@app.delete("/admin/users/{user_ref}")
+def admin_delete_user(user_ref: str, request: Request) -> dict[str, bool]:
+    require_admin_user(request)
+    user = find_user_by_id_or_username(user_ref)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    USERS_DB.remove(user)
+    return {"ok": True}
 
 
 @app.get("/users")

@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import teams, { isScreenAllowed } from '../config/teams';
 import { useAuth } from './AuthContext';
-import screens, { getScreensByGroup } from '../config/screens';
+import screens, { getScreenById, getScreensByGroup } from '../config/screens';
 
 const TeamContext = createContext(null);
 
@@ -20,7 +20,7 @@ function getCurrentScreenId(pathname) {
 }
 
 export function TeamProvider({ children }) {
-    const { user, permissions } = useAuth();
+    const { user, permissions, isAdmin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -74,6 +74,12 @@ export function TeamProvider({ children }) {
 
     const isAllowed = (screenId) => {
         if (!currentTeam) return false;
+
+        const screen = getScreenById(screenId);
+        if (screen?.adminOnly) {
+            return isAdmin;
+        }
+
         if (currentTeam.id === 'PERMISSIONS') {
             if (currentTeam.screens.includes('*')) return true;
             return currentTeam.screens.includes(screenId);

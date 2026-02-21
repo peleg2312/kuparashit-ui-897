@@ -59,6 +59,11 @@ export default function NetappMultiExecPage() {
         return machineLogs[activeMachine] || [];
     }, [activeMachine, machineLogs, systemLogs]);
 
+    const hasMachineTerminalLogs = useMemo(
+        () => Object.values(machineLogs).some((lines) => lines.length > 0),
+        [machineLogs],
+    );
+
     const toggleMachineSelection = (machineName) => {
         setSelectedMachines((prev) => (
             prev.includes(machineName)
@@ -74,6 +79,11 @@ export default function NetappMultiExecPage() {
     const clearSelectedMachines = () => {
         setSelectedMachines([]);
         setFocusedMachine('');
+    };
+
+    const clearAllMachineTerminals = () => {
+        setMachineLogs({});
+        appendSystemLine('Cleared terminal output for all machines.', 'info');
     };
 
     const validateExecutionInput = () => {
@@ -191,6 +201,14 @@ export default function NetappMultiExecPage() {
                             <button type="button" className="btn btn-primary" onClick={runMultiExec} disabled={running}>
                                 <HiLightningBolt size={15} />
                                 {running ? 'Running...' : 'Run Command'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={clearAllMachineTerminals}
+                                disabled={running || !hasMachineTerminalLogs}
+                            >
+                                Clear All Machine Terminals
                             </button>
                         </div>
                     </section>

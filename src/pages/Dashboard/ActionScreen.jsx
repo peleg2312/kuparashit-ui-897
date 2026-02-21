@@ -2,13 +2,9 @@ import { useState } from 'react';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
-import {
-    actionCardColorMap,
-    actionIconMap,
-    normalizeActionPayload,
-    resolveActionApi,
-    resolveActionEndpoint,
-} from '../../utils/actionHandlers';
+import { resolveActionApi, resolveActionEndpoint } from '../../utils/actions/actionApi';
+import { actionCardColorMap, actionIconMap } from '../../utils/actions/actionPresentation';
+import { normalizeActionPayload } from '../../utils/actions/actionPayload';
 import './ActionScreen.css';
 
 export default function ActionScreen({ screenId, title, subtitle, apiService }) {

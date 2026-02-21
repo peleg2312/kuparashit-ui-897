@@ -203,11 +203,14 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const isAdmin = permissions.some((permission) => String(permission || '').trim().toLowerCase() === 'isadmin');
+
     const value = {
         user,
         authMode,
         token,
         permissions,
+        isAdmin,
         isAuthenticated,
         isLoading,
         loginLocal,

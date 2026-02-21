@@ -1,25 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
 import DashboardScreen from './DashboardScreen';
 import { mainApi } from '../../api';
 import ObjectUrlCell from '../../components/DataTable/ObjectUrlCell';
 import Toast from '../../components/Toast/Toast';
 import { copyListToClipboard } from '../../utils/clipboardHandlers';
+import { useTimedToast } from '../../hooks/useTimedToast';
 
 export default function ESXPage() {
-    const [toast, setToast] = useState('');
-    const [toastType, setToastType] = useState('success');
-    const toastTimerRef = useRef(null);
-
-    useEffect(() => () => {
-        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-    }, []);
-
-    const showToast = (message, type = 'success') => {
-        setToast(message);
-        setToastType(type);
-        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = window.setTimeout(() => setToast(''), 2400);
-    };
+    const { toastMessage, toastType, showToast, hideToast } = useTimedToast(2400);
 
     const copyPwwns = async (values) => {
         try {
@@ -65,7 +52,7 @@ export default function ESXPage() {
             key: 'pwwns',
             label: 'PWWNs',
             render: renderPwwnsCell,
-            filterable: true
+            filterable: true,
         },
         { key: 'url', label: 'URL', filterable: false, sortable: false, render: (value) => <ObjectUrlCell value={value} /> },
     ];
@@ -79,7 +66,7 @@ export default function ESXPage() {
                 columns={columns}
                 fetchData={mainApi.getESXHosts}
             />
-            <Toast message={toast} type={toastType} onClose={() => setToast('')} />
+            <Toast message={toastMessage} type={toastType} onClose={hideToast} />
         </>
     );
 }

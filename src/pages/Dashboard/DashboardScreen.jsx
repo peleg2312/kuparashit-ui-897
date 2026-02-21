@@ -1,42 +1,58 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import DataTable from '../../components/DataTable/DataTable';
 import ActionModal from '../../components/ActionModal/ActionModal';
 import JobTracker from '../../components/JobTracker/JobTracker';
 import { getActionsForScreen } from '../../config/actions';
 import { herziApi } from '../../api';
-import { HiPlus, HiSearch, HiX } from 'react-icons/hi';
+import { HiPlus, HiRefresh, HiSearch, HiX } from 'react-icons/hi';
+import { resolveActionApi, resolveActionEndpoint } from '../../utils/actions/actionApi';
+import { actionButtonStyleMap, actionIconMap } from '../../utils/actions/actionPresentation';
+import { normalizeActionPayload } from '../../utils/actions/actionPayload';
+import { buildActionInitialValues } from '../../utils/actions/actionPrefill';
+import HerziResultView from '../../components/HerziTools/HerziResultView';
+import { buildHerziQueryUrl } from '../../utils/herziHandlers';
 import {
-    actionButtonStyleMap,
-    actionIconMap,
-    buildActionInitialValues,
-    normalizeActionPayload,
-    resolveActionApi,
-    resolveActionEndpoint,
-} from '../../utils/actionHandlers';
-import { formatHerziResult, herziQueryByScreen } from '../../utils/dashboardScreenHandlers';
+    formatHerziResult,
+    herziQueryByScreen,
+} from '../../utils/dashboardScreenHandlers';
 import './DashboardScreen.css';
 
-function HerziResultModal({ title, loading, result, onClose }) {
+function HerziResultModal({ title, subtitle, loading, result, responseUrl, onClose }) {
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 760 }}>
-                <div className="modal-header">
+            <div className="modal-content dashboard-herzi-modal animate-scale" onClick={(e) => e.stopPropagation()}>
+                <div className="dashboard-herzi-modal__header">
                     <div>
-                        <h2 className="modal-title">{title}</h2>
-                        <p className="page-subtitle">Live Herzi query result</p>
+                        <p className="dashboard-herzi-modal__eyebrow">Query Result</p>
+                        <h2 className="dashboard-herzi-modal__title">{title}</h2>
+                        <p className="dashboard-herzi-modal__subtitle">{subtitle}</p>
                     </div>
                     <button className="btn-icon" onClick={onClose}><HiX size={18} /></button>
                 </div>
-                <div className="modal-body">
+
+                <div className="dashboard-herzi-modal__meta">
+                    <span className={`badge ${loading ? 'badge-info' : 'badge-success'} dashboard-herzi-modal__status`}>
+                        {loading ? 'Running' : 'Completed'}
+                    </span>
+                </div>
+
+                <div className="dashboard-herzi-modal__body">
                     {loading ? (
-                        <p>Querying Herzi...</p>
+                        <div className="dashboard-herzi-modal__loading" role="status" aria-live="polite">
+                            <div className="dashboard-herzi-modal__loading-head">
+                                <HiRefresh size={16} className="animate-spin" />
+                                Querying Herzi...
+                            </div>
+                            <div className="dashboard-herzi-modal__loading-line" />
+                            <div className="dashboard-herzi-modal__loading-line dashboard-herzi-modal__loading-line--short" />
+                        </div>
                     ) : (
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.84rem' }}>
-                            {result || 'No result'}
-                        </pre>
+                        <HerziResultView value={result} responseUrl={responseUrl} emptyText="No result" />
                     )}
                 </div>
-                <div className="modal-footer">
+
+                <div className="dashboard-herzi-modal__footer">
                     <button className="btn btn-primary" onClick={onClose}>Close</button>
                 </div>
             </div>
@@ -54,9 +70,6 @@ export default function DashboardScreen({
     readOnly = false,
     allowSelection = true,
 }) {
-    const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState('');
     const [activeAction, setActiveAction] = useState(null);
     const [actionInitialValues, setActionInitialValues] = useState({});
     const [job, setJob] = useState(null);
@@ -64,29 +77,31 @@ export default function DashboardScreen({
     const [selectedRows, setSelectedRows] = useState([]);
     const [herziLoading, setHerziLoading] = useState(false);
     const [herziResult, setHerziResult] = useState('');
+    const [herziResponseUrl, setHerziResponseUrl] = useState('');
     const [showHerziResult, setShowHerziResult] = useState(false);
+    const [herziTitle, setHerziTitle] = useState('Herzi Search');
+    const [herziSubtitle, setHerziSubtitle] = useState('Live Herzi query result');
 
     const actions = readOnly ? {} : getActionsForScreen(screenId);
-
-    const loadData = useCallback(() => {
-        setLoading(true);
-        setLoadError('');
-        fetchData()
-            .then((rows) => {
-                setData(Array.isArray(rows) ? rows : []);
-            })
-            .catch((error) => {
-                setData([]);
-                setLoadError(error?.message || 'Failed to load table data.');
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    }, [fetchData]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    const herziConfig = herziQueryByScreen[screenId] || null;
+    const {
+        data = [],
+        isFetching,
+        error: loadErrorObj,
+        isError: hasLoadError,
+        refetch: refetchTableData,
+    } = useQuery({
+        queryKey: ['dashboard-table', screenId],
+        queryFn: async () => {
+            const rows = await fetchData();
+            return Array.isArray(rows) ? rows : [];
+        },
+        enabled: typeof fetchData === 'function',
+        retry: false,
+        refetchOnWindowFocus: false,
+    });
+    const loading = isFetching;
+    const loadError = hasLoadError ? (loadErrorObj?.message || 'Failed to load table data.') : '';
 
     const openAction = (key) => {
         const action = actions[key];
@@ -125,16 +140,45 @@ export default function DashboardScreen({
     };
 
     const handleRowHerziSearch = async (row) => {
-        const config = herziQueryByScreen[screenId];
-        if (!config) return;
+        if (!herziConfig) return;
 
-        const input = config.getInput(row);
+        const input = herziConfig.getInput(row);
         if (!input) return;
 
+        setHerziTitle('Herzi Search');
+        setHerziSubtitle('Live Herzi query result');
         setShowHerziResult(true);
         setHerziLoading(true);
+        setHerziResponseUrl(buildHerziQueryUrl(herziConfig.endpoint, String(input)));
         try {
-            const result = await herziApi.query(config.endpoint, String(input));
+            const result = await herziApi.query(herziConfig.endpoint, String(input));
+            setHerziResult(formatHerziResult(result));
+        } catch (error) {
+            setHerziResult(`Query failed: ${error?.message || 'unknown error'}`);
+        } finally {
+            setHerziLoading(false);
+        }
+    };
+
+    const handleSelectedHerziSearch = async () => {
+        if (!herziConfig || !selectedRows.length) return;
+
+        const inputItems = [...new Set(
+            selectedRows
+                .map((row) => herziConfig.getInput(row))
+                .map((value) => String(value || '').trim())
+                .filter(Boolean),
+        )];
+        if (!inputItems.length) return;
+
+        const queryInput = inputItems.length === 1 ? inputItems[0] : inputItems;
+        setHerziTitle(inputItems.length > 1 ? `Herzi Search (${inputItems.length} items)` : 'Herzi Search');
+        setHerziSubtitle(inputItems.length > 1 ? 'Bulk query result from selected rows' : 'Live Herzi query result');
+        setShowHerziResult(true);
+        setHerziLoading(true);
+        setHerziResponseUrl(buildHerziQueryUrl(herziConfig.endpoint, queryInput));
+        try {
+            const result = await herziApi.query(herziConfig.endpoint, queryInput);
             setHerziResult(formatHerziResult(result));
         } catch (error) {
             setHerziResult(`Query failed: ${error?.message || 'unknown error'}`);
@@ -152,6 +196,12 @@ export default function DashboardScreen({
                 </div>
                 {!readOnly && (
                     <div className="page-actions">
+                        {herziConfig && selectedRows.length > 0 && (
+                            <button className="btn btn-secondary" onClick={handleSelectedHerziSearch}>
+                                <HiSearch size={20} />
+                                Herzi Selected ({selectedRows.length})
+                            </button>
+                        )}
                         {Object.entries(actions).map(([key, action]) => {
                             const Icon = actionIconMap[key] || HiPlus;
                             const style = actionButtonStyleMap[key] || 'btn-secondary';
@@ -193,8 +243,8 @@ export default function DashboardScreen({
                     columns={columns}
                     data={data}
                     loading={loading}
-                    enableSelection={!readOnly && !!actions.delete && allowSelection}
-                    rowAction={herziQueryByScreen[screenId] ? {
+                    enableSelection={!readOnly && allowSelection && (!!actions.delete || !!herziConfig)}
+                    rowAction={herziConfig ? {
                         title: 'Search in Herzi',
                         icon: <HiSearch size={16} />,
                         onClick: handleRowHerziSearch,
@@ -209,6 +259,8 @@ export default function DashboardScreen({
             {activeAction && actions[activeAction] && (
                 <ActionModal
                     action={actions[activeAction]}
+                    actionKey={activeAction}
+                    screenId={screenId}
                     initialValues={actionInitialValues}
                     onClose={() => {
                         setActiveAction(null);
@@ -219,17 +271,28 @@ export default function DashboardScreen({
             )}
 
             {job && (
-                <JobTracker job={job} onClose={() => { setJob(null); loadData(); }} />
+                <JobTracker
+                    job={job}
+                    onClose={() => {
+                        setJob(null);
+                        void refetchTableData();
+                    }}
+                />
             )}
 
             {showHerziResult && (
                 <HerziResultModal
-                    title="Herzi Search"
+                    title={herziTitle}
+                    subtitle={herziSubtitle}
                     loading={herziLoading}
                     result={herziResult}
+                    responseUrl={herziResponseUrl}
                     onClose={() => {
                         setShowHerziResult(false);
                         setHerziResult('');
+                        setHerziResponseUrl('');
+                        setHerziTitle('Herzi Search');
+                        setHerziSubtitle('Live Herzi query result');
                     }}
                 />
             )}
