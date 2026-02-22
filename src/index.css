@@ -166,7 +166,7 @@ textarea {
 .btn-primary {
   background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 10px 22px rgba(200, 29, 46, 0.24);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--btn-primary-glow, var(--accent)), transparent 76%);
 }
 
 .btn-success {
@@ -247,6 +247,21 @@ textarea {
     calc(100% - 34px) 50%;
   background-size: 6px 6px, 6px 6px, 1px 18px;
   background-repeat: no-repeat;
+}
+
+.select-field option,
+.select-field optgroup {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.select-field option {
+  font-weight: 600;
+}
+
+.select-field:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .input-field:focus,

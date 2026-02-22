@@ -330,18 +330,48 @@
 }
 
 .dt-loading {
-    padding: 12px;
+    min-height: 100%;
+    height: 100%;
 }
 
-.dt-skeleton-row {
-    display: grid;
-    grid-template-columns: 32px repeat(8, 1fr);
-    gap: 10px;
-    margin-bottom: 10px;
+.dt-table--skeleton {
+    table-layout: fixed;
+}
+
+.dt-table--skeleton .dt-th,
+.dt-table--skeleton .dt-td {
+    pointer-events: none;
+}
+
+.dt-skeleton-block {
+    display: block;
+}
+
+.dt-skeleton-block--head {
+    width: 72%;
+    min-width: 56px;
+    height: 12px;
+}
+
+.dt-skeleton-block--cell {
+    width: 100%;
+    height: 14px;
+}
+
+.dt-skeleton-block--check {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.dt-skeleton-block--action {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    margin-inline: auto;
 }
 
 .skeleton {
-    height: 16px;
     border-radius: 6px;
     background: linear-gradient(90deg, var(--bg-input), var(--bg-card-hover), var(--bg-input));
     background-size: 200% 100%;

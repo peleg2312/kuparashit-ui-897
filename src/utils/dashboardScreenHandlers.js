@@ -7,7 +7,3 @@ export const herziQueryByScreen = {
         getInput: (row) => (Array.isArray(row.pwwns) ? row.pwwns[0] : row.name),
     },
 };
-
-export function formatHerziResult(result) {
-    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-}

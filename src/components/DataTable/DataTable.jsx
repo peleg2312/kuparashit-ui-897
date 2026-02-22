@@ -53,6 +53,7 @@ export default function DataTable({
             <DataTableGrid
                 columns={columns}
                 loading={loading}
+                skeletonRowCount={state.pageSize}
                 enableSelection={enableSelection}
                 rowAction={rowAction}
                 pagedData={derived.pagedData}

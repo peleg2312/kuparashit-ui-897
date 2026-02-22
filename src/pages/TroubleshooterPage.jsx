@@ -231,7 +231,7 @@ export default function TroubleshooterPage() {
                                 className="btn btn-primary ts-run-btn"
                                 onClick={runTroubleshooter}
                                 disabled={running || loadingOptions}
-                                style={{ background: activeMode.color }}
+                                style={{ background: activeMode.color, '--btn-primary-glow': activeMode.color }}
                             >
                                 {running ? (
                                     <>

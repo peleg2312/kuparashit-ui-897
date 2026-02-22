@@ -4,6 +4,7 @@ import { getRowId, getStatusClass } from '../../utils/dataTableHandlers';
 export default function DataTableGrid({
     columns,
     loading,
+    skeletonRowCount = 14,
     enableSelection,
     rowAction,
     pagedData,
@@ -19,18 +20,54 @@ export default function DataTableGrid({
     onBlockedSelection,
     onRowClick,
 }) {
+    const loadingRows = Array.from({ length: Math.max(6, skeletonRowCount) });
+
     return (
         <div className="dt-container">
             {loading ? (
-                <div className="dt-loading">
-                    {Array.from({ length: 6 }).map((_, rowIndex) => (
-                        <div key={rowIndex} className="dt-skeleton-row">
-                            <div className="skeleton dt-skeleton-check" />
-                            {columns.map((_, columnIndex) => (
-                                <div key={columnIndex} className="skeleton dt-skeleton-cell" />
+                <div className="dt-loading" role="status" aria-live="polite" aria-label="Loading table data">
+                    <table className="dt-table dt-table--skeleton" aria-hidden="true">
+                        <thead>
+                            <tr>
+                                {enableSelection && (
+                                    <th className="dt-th dt-th-check">
+                                        <span className="skeleton dt-skeleton-block dt-skeleton-block--check" />
+                                    </th>
+                                )}
+                                {columns.map((column) => (
+                                    <th key={column.key} className="dt-th" style={{ width: column.width }}>
+                                        <span className="skeleton dt-skeleton-block dt-skeleton-block--head" />
+                                    </th>
+                                ))}
+                                {rowAction && (
+                                    <th className="dt-th dt-th-action">
+                                        <span className="skeleton dt-skeleton-block dt-skeleton-block--head dt-skeleton-block--action" />
+                                    </th>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingRows.map((_, rowIndex) => (
+                                <tr key={rowIndex} className="dt-skeleton-tr">
+                                    {enableSelection && (
+                                        <td className="dt-td dt-td-check">
+                                            <span className="skeleton dt-skeleton-block dt-skeleton-block--check" />
+                                        </td>
+                                    )}
+                                    {columns.map((column) => (
+                                        <td key={`${column.key}-${rowIndex}`} className="dt-td">
+                                            <span className="skeleton dt-skeleton-block dt-skeleton-block--cell" />
+                                        </td>
+                                    ))}
+                                    {rowAction && (
+                                        <td className="dt-td dt-td-action">
+                                            <span className="skeleton dt-skeleton-block dt-skeleton-block--action" />
+                                        </td>
+                                    )}
+                                </tr>
                             ))}
-                        </div>
-                    ))}
+                        </tbody>
+                    </table>
                 </div>
             ) : (
                 <table className="dt-table">

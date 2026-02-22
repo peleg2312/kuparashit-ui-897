@@ -87,7 +87,7 @@ const dsActions = {
                 label: 'Target Fcalias',
                 type: 'text',
                 required: true,
-                visibleWhen: { field: 'clusterType', equals: 'netapp' },
+                visibleWhen: { field: 'clusterType', in: ['netapp', 'vmax'] },
             },
             {
                 name: 'storage_array_ip',
@@ -113,13 +113,6 @@ const dsActions = {
             {
                 name: 'sid',
                 label: 'Sid Of Vmax',
-                type: 'text',
-                required: true,
-                visibleWhen: { field: 'clusterType', equals: 'vmax' },
-            },
-            {
-                name: 'target_fcalias',
-                label: 'Target Fcalias',
                 type: 'text',
                 required: true,
                 visibleWhen: { field: 'clusterType', equals: 'vmax' },

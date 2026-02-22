@@ -4,17 +4,26 @@ import { HiCurrencyDollar, HiCalculator } from 'react-icons/hi';
 import { formatPriceDetailLabel, machineTypes, normalizePriceValues } from '../utils/priceHandlers';
 import './PricePage.css';
 
+function getMachineInitialValues(machine) {
+    return (machine?.params || []).reduce((acc, param) => {
+        if (Object.prototype.hasOwnProperty.call(param, 'defaultValue')) {
+            acc[param.name] = param.defaultValue;
+        }
+        return acc;
+    }, {});
+}
+
 export default function PricePage() {
     const [activeTab, setActiveTab] = useState('NETAPP');
-    const [values, setValues] = useState({});
+    const [values, setValues] = useState(() => getMachineInitialValues(machineTypes.NETAPP));
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    const machine = machineTypes[activeTab];
+    const machine = machineTypes[activeTab] || machineTypes.NETAPP;
 
     const handleTabChange = (tab) => {
         setActiveTab(tab);
-        setValues({});
+        setValues(getMachineInitialValues(machineTypes[tab]));
         setResult(null);
     };
 
@@ -77,16 +86,43 @@ export default function PricePage() {
                                             value={values[param.name] || ''}
                                             onChange={e => handleChange(param.name, e.target.value)}
                                         />
+                                    ) : param.type === 'select' ? (
+                                        <select
+                                            className="select-field"
+                                            value={values[param.name] || ''}
+                                            onChange={e => handleChange(param.name, e.target.value)}
+                                        >
+                                            {(param.options || []).map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
                                     ) : param.type === 'toggle' ? (
                                         <label className="toggle-wrapper">
                                             <input
                                                 type="checkbox"
                                                 className="toggle-input"
-                                                checked={!!values[param.name]}
-                                                onChange={e => handleChange(param.name, e.target.checked)}
+                                                checked={
+                                                    Object.prototype.hasOwnProperty.call(param, 'trueValue')
+                                                        ? values[param.name] === param.trueValue
+                                                        : !!values[param.name]
+                                                }
+                                                onChange={(e) => handleChange(
+                                                    param.name,
+                                                    e.target.checked
+                                                        ? (Object.prototype.hasOwnProperty.call(param, 'trueValue') ? param.trueValue : true)
+                                                        : (Object.prototype.hasOwnProperty.call(param, 'falseValue') ? param.falseValue : false),
+                                                )}
                                             />
                                             <span className="toggle-slider" />
-                                            <span className="toggle-label">{values[param.name] ? 'Enabled' : 'Disabled'}</span>
+                                            <span className="toggle-label">
+                                                {(Object.prototype.hasOwnProperty.call(param, 'trueValue')
+                                                    ? values[param.name] === param.trueValue
+                                                    : !!values[param.name])
+                                                    ? (param.trueLabel || 'Enabled')
+                                                    : (param.falseLabel || 'Disabled')}
+                                            </span>
                                         </label>
                                     ) : null}
                                 </div>
@@ -96,7 +132,7 @@ export default function PricePage() {
                                 className="btn btn-primary price-calc-btn"
                                 onClick={handleCalculate}
                                 disabled={loading || !values.size}
-                                style={{ background: machine.color }}
+                                style={{ background: machine.color, '--btn-primary-glow': machine.color }}
                             >
                                 {loading ? (
                                     <>

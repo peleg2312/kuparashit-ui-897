@@ -312,10 +312,15 @@
 
 .herzi-result-modal {
     width: min(900px, 100%);
+    max-height: calc(100dvh - 56px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .herzi-result-modal--multi {
     width: min(960px, 100%);
+    max-height: calc(100dvh - 56px);
 }
 
 .herzi-result-header {
@@ -361,7 +366,10 @@
     background: color-mix(in srgb, var(--bg-input), var(--bg-secondary) 16%);
     padding: 12px;
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 10px;
+    min-height: 0;
+    max-height: min(68vh, 620px);
 }
 
 .herzi-simple-list-head {
@@ -382,7 +390,8 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--bg-card);
-    max-height: 52vh;
+    max-height: none;
+    min-height: 0;
     overflow: auto;
     padding: 8px;
     display: grid;
@@ -415,6 +424,9 @@
     grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
     gap: 14px;
     min-height: 420px;
+    height: min(68vh, 640px);
+    max-height: min(68vh, 640px);
+    overflow: hidden;
 }
 
 .herzi-result-side {
@@ -430,6 +442,7 @@
     grid-template-rows: auto auto auto minmax(0, 1fr);
     gap: 9px;
     overflow: hidden;
+    min-height: 0;
 }
 
 .herzi-result-side-head {
@@ -516,7 +529,8 @@
 }
 
 .herzi-result-items {
-    max-height: 100%;
+    max-height: none;
+    min-height: 0;
     overflow: auto;
     padding: 2px;
     display: grid;
@@ -605,6 +619,7 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     gap: 10px;
+    min-height: 0;
 }
 
 .herzi-result-selected-label {
@@ -620,6 +635,13 @@
 .herzi-result-detail-view .herzi-result-body {
     max-height: none;
     min-height: 0;
+    height: 100%;
+    overflow: auto;
+}
+
+.herzi-result-modal .modal-footer {
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 @media (max-width: 960px) {
@@ -643,11 +665,14 @@
 
     .herzi-result-modal--multi {
         width: 100%;
+        max-height: calc(100dvh - 20px);
     }
 
     .herzi-result-layout {
         grid-template-columns: 1fr;
         min-height: 0;
+        height: min(74vh, 760px);
+        max-height: min(74vh, 760px);
     }
 
     .herzi-result-side {
@@ -659,6 +684,6 @@
     }
 
     .herzi-result-detail-view .herzi-result-body {
-        max-height: 52vh;
+        max-height: none;
     }
 }

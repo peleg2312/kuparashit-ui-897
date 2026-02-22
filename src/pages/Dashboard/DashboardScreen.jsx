@@ -11,11 +11,13 @@ import { actionButtonStyleMap, actionIconMap } from '../../utils/actions/actionP
 import { normalizeActionPayload } from '../../utils/actions/actionPayload';
 import { buildActionInitialValues } from '../../utils/actions/actionPrefill';
 import HerziResultView from '../../components/HerziTools/HerziResultView';
-import { buildHerziQueryUrl } from '../../utils/herziHandlers';
+import HerziMultiResultPopup from '../../components/HerziTools/HerziMultiResultPopup';
+import { copyListToClipboard, copyTextToClipboard } from '../../utils/clipboardHandlers';
+import { buildHerziQueryUrl, formatHerziToolResult } from '../../utils/herziHandlers';
 import {
-    formatHerziResult,
     herziQueryByScreen,
 } from '../../utils/dashboardScreenHandlers';
+import '../../pages/HerziToolsPage.css';
 import './DashboardScreen.css';
 
 function HerziResultModal({ title, subtitle, loading, result, responseUrl, onClose }) {
@@ -78,6 +80,13 @@ export default function DashboardScreen({
     const [herziLoading, setHerziLoading] = useState(false);
     const [herziResult, setHerziResult] = useState('');
     const [herziResponseUrl, setHerziResponseUrl] = useState('');
+    const [herziResultMode, setHerziResultMode] = useState('single');
+    const [herziMultiState, setHerziMultiState] = useState({
+        items: [],
+        resultsByItem: {},
+        responseUrlsByItem: {},
+        queryUrl: '',
+    });
     const [showHerziResult, setShowHerziResult] = useState(false);
     const [herziTitle, setHerziTitle] = useState('Herzi Search');
     const [herziSubtitle, setHerziSubtitle] = useState('Live Herzi query result');
@@ -139,12 +148,51 @@ export default function DashboardScreen({
         setSelectedRows([]);
     };
 
+    const closeHerziResult = () => {
+        setShowHerziResult(false);
+        setHerziLoading(false);
+        setHerziResult('');
+        setHerziResponseUrl('');
+        setHerziResultMode('single');
+        setHerziMultiState({
+            items: [],
+            resultsByItem: {},
+            responseUrlsByItem: {},
+            queryUrl: '',
+        });
+        setHerziTitle('Herzi Search');
+        setHerziSubtitle('Live Herzi query result');
+    };
+
+    const handleCopyHerziResult = async (value) => {
+        try {
+            await copyTextToClipboard(String(value || '').trim());
+        } catch {
+            // Keep copy failures non-blocking for dashboard flow.
+        }
+    };
+
+    const handleCopyHerziList = async (values) => {
+        try {
+            await copyListToClipboard(values);
+        } catch {
+            // Keep copy failures non-blocking for dashboard flow.
+        }
+    };
+
     const handleRowHerziSearch = async (row) => {
         if (!herziConfig) return;
 
         const input = herziConfig.getInput(row);
         if (!input) return;
 
+        setHerziResultMode('single');
+        setHerziMultiState({
+            items: [],
+            resultsByItem: {},
+            responseUrlsByItem: {},
+            queryUrl: '',
+        });
         setHerziTitle('Herzi Search');
         setHerziSubtitle('Live Herzi query result');
         setShowHerziResult(true);
@@ -152,7 +200,7 @@ export default function DashboardScreen({
         setHerziResponseUrl(buildHerziQueryUrl(herziConfig.endpoint, String(input)));
         try {
             const result = await herziApi.query(herziConfig.endpoint, String(input));
-            setHerziResult(formatHerziResult(result));
+            setHerziResult(formatHerziToolResult(result));
         } catch (error) {
             setHerziResult(`Query failed: ${error?.message || 'unknown error'}`);
         } finally {
@@ -174,12 +222,45 @@ export default function DashboardScreen({
         const queryInput = inputItems.length === 1 ? inputItems[0] : inputItems;
         setHerziTitle(inputItems.length > 1 ? `Herzi Search (${inputItems.length} items)` : 'Herzi Search');
         setHerziSubtitle(inputItems.length > 1 ? 'Bulk query result from selected rows' : 'Live Herzi query result');
+        setHerziResultMode(inputItems.length > 1 ? 'multi' : 'single');
+        setHerziMultiState({
+            items: [],
+            resultsByItem: {},
+            responseUrlsByItem: {},
+            queryUrl: buildHerziQueryUrl(herziConfig.endpoint, queryInput),
+        });
         setShowHerziResult(true);
         setHerziLoading(true);
         setHerziResponseUrl(buildHerziQueryUrl(herziConfig.endpoint, queryInput));
         try {
-            const result = await herziApi.query(herziConfig.endpoint, queryInput);
-            setHerziResult(formatHerziResult(result));
+            if (inputItems.length === 1) {
+                const result = await herziApi.query(herziConfig.endpoint, queryInput);
+                setHerziResult(formatHerziToolResult(result));
+                return;
+            }
+
+            const settledResults = await Promise.allSettled(
+                inputItems.map((item) => herziApi.query(herziConfig.endpoint, item)),
+            );
+            const resultsByItem = {};
+            const responseUrlsByItem = {};
+
+            inputItems.forEach((item, index) => {
+                const result = settledResults[index];
+                responseUrlsByItem[item] = buildHerziQueryUrl(herziConfig.endpoint, item);
+                if (result?.status === 'fulfilled') {
+                    resultsByItem[item] = formatHerziToolResult(result.value);
+                    return;
+                }
+                resultsByItem[item] = `Query failed: ${result?.reason?.message || 'unknown error'}`;
+            });
+
+            setHerziMultiState({
+                items: inputItems,
+                resultsByItem,
+                responseUrlsByItem,
+                queryUrl: buildHerziQueryUrl(herziConfig.endpoint, queryInput),
+            });
         } catch (error) {
             setHerziResult(`Query failed: ${error?.message || 'unknown error'}`);
         } finally {
@@ -280,22 +361,27 @@ export default function DashboardScreen({
                 />
             )}
 
-            {showHerziResult && (
+            {showHerziResult && herziResultMode === 'multi' && !herziLoading && herziMultiState.items.length > 1 ? (
+                <HerziMultiResultPopup
+                    title={herziTitle}
+                    items={herziMultiState.items}
+                    resultsByItem={herziMultiState.resultsByItem}
+                    responseUrlsByItem={herziMultiState.responseUrlsByItem}
+                    queryUrl={herziMultiState.queryUrl}
+                    onClose={closeHerziResult}
+                    onCopyResult={handleCopyHerziResult}
+                    onCopyList={handleCopyHerziList}
+                />
+            ) : showHerziResult ? (
                 <HerziResultModal
                     title={herziTitle}
                     subtitle={herziSubtitle}
                     loading={herziLoading}
                     result={herziResult}
                     responseUrl={herziResponseUrl}
-                    onClose={() => {
-                        setShowHerziResult(false);
-                        setHerziResult('');
-                        setHerziResponseUrl('');
-                        setHerziTitle('Herzi Search');
-                        setHerziSubtitle('Live Herzi query result');
-                    }}
+                    onClose={closeHerziResult}
                 />
-            )}
+            ) : null}
         </div>
     );
 }

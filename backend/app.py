@@ -553,6 +553,8 @@ class CalculatePayload(BaseModel):
     iops: float | None = None
     replicas: float | None = None
     srdf: bool | None = None
+    diskType: str | None = None
+    spare: int | None = None
 
 
 class HerziPayload(BaseModel):
@@ -2028,6 +2030,10 @@ def step_log(jobId: str) -> list[dict[str, str]]:
 def price_calculate(payload: CalculatePayload) -> dict[str, Any]:
     mt = payload.machineType.upper()
     size = payload.size
+    disk_type = str(payload.diskType or "SSD").strip().upper()
+    if disk_type not in {"SSD", "HDD"}:
+        disk_type = "SSD"
+    spare = 1 if int(payload.spare or 0) else 0
     if mt == "NETAPP":
         iops = payload.iops or 0
         return {
@@ -2036,6 +2042,8 @@ def price_calculate(payload: CalculatePayload) -> dict[str, Any]:
             "iopsAllocated": int(iops or 1000),
             "throughput": f"{round((iops or 1000) * 0.032)} MB/s",
             "tier": "Enterprise" if size > 5000 else "Standard" if size > 1000 else "Basic",
+            "diskType": disk_type,
+            "spare": spare,
         }
     if mt == "PFLEX":
         replicas = payload.replicas or 1
@@ -2045,6 +2053,8 @@ def price_calculate(payload: CalculatePayload) -> dict[str, Any]:
             "replicaCount": int(replicas),
             "compressionRatio": "2.3:1",
             "effectiveCapacity": f"{size * 2.3:.0f} GB",
+            "diskType": disk_type,
+            "spare": spare,
         }
     if mt == "PMAX":
         srdf_extra = 200 if payload.srdf else 0
@@ -2054,6 +2064,8 @@ def price_calculate(payload: CalculatePayload) -> dict[str, Any]:
             "srdfEnabled": bool(payload.srdf),
             "raidLevel": "RAID 6",
             "cacheHitRate": "94%",
+            "diskType": disk_type,
+            "spare": spare,
         }
     return {"price": "0.00", "error": "Unknown machine type"}
 
@@ -2065,6 +2077,8 @@ def calculate_storage_netapp(
     iops: float | None = None,
     replicas: float | None = None,
     srdf: bool | None = None,
+    diskType: str | None = None,
+    spare: int | None = None,
 ) -> dict[str, Any]:
     payload = CalculatePayload(
         machineType=machineType or "NETAPP",
@@ -2072,6 +2086,8 @@ def calculate_storage_netapp(
         iops=iops,
         replicas=replicas,
         srdf=srdf,
+        diskType=diskType,
+        spare=spare,
     )
     return price_calculate(payload)
 
@@ -2083,6 +2099,8 @@ def calculate_storage_powermax(
     iops: float | None = None,
     replicas: float | None = None,
     srdf: bool | None = None,
+    diskType: str | None = None,
+    spare: int | None = None,
 ) -> dict[str, Any]:
     payload = CalculatePayload(
         machineType=machineType or "PMAX",
@@ -2090,6 +2108,8 @@ def calculate_storage_powermax(
         iops=iops,
         replicas=replicas,
         srdf=srdf,
+        diskType=diskType,
+        spare=spare,
     )
     return price_calculate(payload)
 
@@ -2101,6 +2121,8 @@ def calculate_storage_powerflex(
     iops: float | None = None,
     replicas: float | None = None,
     srdf: bool | None = None,
+    diskType: str | None = None,
+    spare: int | None = None,
 ) -> dict[str, Any]:
     payload = CalculatePayload(
         machineType=machineType or "PFLEX",
@@ -2108,6 +2130,8 @@ def calculate_storage_powerflex(
         iops=iops,
         replicas=replicas,
         srdf=srdf,
+        diskType=diskType,
+        spare=spare,
     )
     return price_calculate(payload)
 
@@ -2145,6 +2169,65 @@ def download_file_contract(fileName: str | None = None) -> Response:
     )
 
 
+def build_vm_information_response(query: str) -> dict[str, Any]:
+    item = str(query or "").strip() or "unknown"
+    return {
+        "input": item,
+        "kind": "vm_or_ds_information",
+        "power_state": "on",
+        "cluster": "CL-TLV-PROD-01",
+        "hosts": ["ESX-TLV-01", "ESX-TLV-04", "ESX-TLV-03"],
+        "storage": {
+            "datastore": "DS-TLV-FAST-01",
+            "vmx_path": f"/vmfs/volumes/DS-TLV-FAST-01/{item}/{item}.vmx",
+            "ops_path": f"ops/vm/recovery/{item}/phase/1/checklist",
+            "linux_log_path": f"/var/log/vmware/{item}/guest/tools.log",
+        },
+        "portal_url": f"vc-tlv-01.lab.local/ui/app/vm/{item}",
+        "troubleshoot_url": f"https://ops.lab.local/troubleshoot/vm/{item}",
+        "notes": [
+            "paths with many slashes are included",
+            "single-slash paths should not be treated as URL values",
+            "url key + domain value without // is included for testing",
+        ],
+        "links": [
+            f"https://kb.lab.local/articles/{item}",
+            f"docs.lab.local/vm/{item}",
+            f"/clusters/tlv/hosts/esx-01/vms/{item}",
+        ],
+        "events": [
+            {
+                "event": "vm.power.on",
+                "event_path": f"tasks/vm/{item}/power/on",
+                "event_url": "https://events.lab.local/evt/1001",
+            },
+            {
+                "event": "snapshot.create",
+                "event_path": f"/snapshots/nightly/{item}/2026/02/22",
+                "event_url": "events.lab.local/evt/1002",
+            },
+        ],
+        "plain_domain_no_hint": "inventory.lab.local/vm/details/12345",
+        "flags": {"ha_protected": True, "drs_enabled": True, "maintenance_mode": False},
+        "metrics": {"cpu_ready_pct": 1.7, "memory_mb": 16384, "latency_ms": [2, 4, 3]},
+        "nullable_example": None,
+    }
+
+
+def build_naa_information_response(query: str) -> dict[str, Any]:
+    naa = str(query or "").strip() or "unknown"
+    return {
+        "input": naa,
+        "type": "VMFS",
+        "datastore": "DS-TLV-FAST-01",
+        "capacity_gb": 500,
+        "status": "Active",
+        "array": "AFF-A400",
+        "owner_esx": "ESX-TLV-01",
+        "naa_url": f"storage.lab.local/naa/{naa}",
+    }
+
+
 HERZI_RESPONSES = {
     "/herzi/vc-info": lambda q: f"vCenter: {q}\nVersion: 7.0.3\nHost Count: 12\nVM Count: 156\nStatus: Healthy",
     "/herzi/vc-health": lambda q: f"Input: {q}\nStatus: Healthy\nCPU Usage: 45%\nMemory: 62%\nStorage: 71%\nAlarms: 0",
@@ -2152,7 +2235,7 @@ HERZI_RESPONSES = {
     "/herzi/vm-snapshot": lambda q: f"VM: {q}\nSnapshots: 3\nOldest: 2025-01-15\nTotal Size: 12.5 GB",
     "/herzi/ds-usage": lambda q: f"Datastore: {q}\nCapacity: 10 TB\nUsed: 6.2 TB\nFree: 38%\nVMs: 18",
     "/herzi/ds-vms": lambda q: f"Datastore: {q}\n\nVMs:\n1. web-prod-001\n2. db-prod-005\n3. app-stg-012",
-    "/herzi/naa-lookup": lambda q: f"NAA: {q}\nType: VMFS\nDatastore: DS-TLV-FAST-01\nCapacity: 500 GB\nStatus: Active",
+    "/herzi/naa-lookup": build_naa_information_response,
     "/herzi/naa-mapping": lambda q: f"NAA: {q}\nMapped to: DS-NYC-CAP-01\nHost: ESX-NYC-01\nLUN ID: 12",
     "/herzi/vm-naa": lambda q: f"VM: {q}\n\nNAA Devices:\n1. naa.6000A0A1B2C30001 (100 GB)\n2. naa.6000A0A1B2C30002 (200 GB)",
     "/herzi/naa-ds-information": lambda q: (
@@ -2161,9 +2244,7 @@ HERZI_RESPONSES = {
     "/herzi/esx-pwwn": lambda q: (
         f"ESX: {q}\nPWWN-1: 10:00:00:90:fa:90:11:01\nPWWN-2: 10:00:00:90:fa:90:11:02\nPWWN-3: 10:00:00:90:fa:90:11:03"
     ),
-    "/herzi/vm-information": lambda q: (
-        f"VM: {q}\nPower: on\nvCenter: VC-TLV-01\nHost: ESX-TLV-01\nDatastore: DS-TLV-FAST-01\nIP: 10.10.0.21"
-    ),
+    "/herzi/vm-information": build_vm_information_response,
     "/herzi/unused-luns": lambda q: (
         f"vCenter: {q}\nUnused LUNs:\n1. lun_orphan_001\n2. lun_orphan_014\n3. lun_orphan_022"
     ),
@@ -2186,7 +2267,7 @@ HERZI_CONTRACT_HANDLERS = {
 }
 
 
-def _run_herzi_contract_handler(request: Request) -> str | list[dict[str, str]]:
+def _run_herzi_contract_handler(request: Request) -> str | dict[str, Any] | list[dict[str, Any]]:
     handler = HERZI_CONTRACT_HANDLERS.get(request.url.path)
     if handler is None:
         return "No data found"
@@ -2208,12 +2289,12 @@ def _run_herzi_contract_handler(request: Request) -> str | list[dict[str, str]]:
 @app.get("/pwwn_to_esx")
 @app.get("/get_naa_information")
 @app.get("/get_lun_or_vol_information")
-def herzi_contract_route(request: Request) -> str | list[dict[str, str]]:
+def herzi_contract_route(request: Request) -> str | dict[str, Any] | list[dict[str, Any]]:
     return _run_herzi_contract_handler(request)
 
 
 @app.post("/herzi/{tool_name:path}")
-def herzi_tools(tool_name: str, payload: HerziPayload) -> str | list[dict[str, str]]:
+def herzi_tools(tool_name: str, payload: HerziPayload) -> str | dict[str, Any] | list[dict[str, Any]]:
     endpoint = f"/herzi/{tool_name}"
     handler = HERZI_RESPONSES.get(endpoint)
     if handler is None:

@@ -167,10 +167,25 @@
     border-bottom: 1px solid color-mix(in srgb, var(--border), transparent 16%);
 }
 
+.user-management__section-head-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .user-management__section-title {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+}
+
+.user-management__section-add-btn {
+    min-height: 34px;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+    white-space: nowrap;
 }
 
 .user-management__section-icon {
@@ -630,6 +645,11 @@
     .user-management__list-head {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .user-management__section-head-main {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .user-management__search--inline {

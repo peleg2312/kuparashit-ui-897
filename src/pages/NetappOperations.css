@@ -227,9 +227,15 @@
     width: 100%;
     padding: 10px;
     border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary), var(--bg-card) 14%),
+            color-mix(in srgb, var(--bg-secondary), #000 2%)
+        );
+    border: 1px solid color-mix(in srgb, var(--border), var(--text-primary) 8%);
     box-shadow: var(--shadow-md);
+    backdrop-filter: blur(8px);
     max-height: min(420px, 60vh);
     overflow: hidden;
 }
@@ -260,31 +266,39 @@
     overflow: auto;
     display: flex;
     flex-direction: column;
+    gap: 4px;
     padding-right: 4px;
 }
 
 .netapp-machine-picker__item {
-    border: 0;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 10px;
     padding: 10px 6px;
     display: flex;
     align-items: center;
     gap: 10px;
-    background: transparent;
+    background: color-mix(in srgb, var(--bg-input), transparent 55%);
     cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .netapp-machine-picker__item:last-child {
-    border-bottom: 0;
+    margin-bottom: 0;
 }
 
 .netapp-machine-picker__item:hover {
-    background: color-mix(in srgb, var(--bg-input), transparent 20%);
+    border-color: color-mix(in srgb, var(--border-hover), transparent 5%);
+    background: color-mix(in srgb, var(--bg-input), transparent 18%);
 }
 
 .netapp-machine-picker__item.is-selected {
-    background: var(--accent-subtle);
+    border-color: color-mix(in srgb, var(--accent), transparent 52%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 22%);
+}
+
+.netapp-machine-picker__item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 .netapp-machine-picker__item input {

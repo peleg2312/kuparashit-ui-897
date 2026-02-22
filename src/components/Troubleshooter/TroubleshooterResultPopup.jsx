@@ -19,7 +19,7 @@ export default function TroubleshooterResultPopup({ title, result, color, onClos
                 </div>
 
                 <div className="modal-footer">
-                    <button className="btn btn-primary" style={{ background: color }} onClick={onClose}>
+                    <button className="btn btn-primary" style={{ background: color, '--btn-primary-glow': color }} onClick={onClose}>
                         Close
                     </button>
                 </div>
