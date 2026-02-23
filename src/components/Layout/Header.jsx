@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeam } from '../../contexts/TeamContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import { HiSun, HiMoon, HiChevronDown } from 'react-icons/hi';
+import { HiChevronDown } from 'react-icons/hi';
 import './Header.css';
 
 export default function Header() {
     const { user } = useAuth();
     const { currentTeam, userTeams, switchTeam } = useTeam();
-    const { theme, toggleTheme } = useTheme();
 
     const [showTeamMenu, setShowTeamMenu] = useState(false);
     const teamRef = useRef(null);
@@ -84,18 +82,8 @@ export default function Header() {
                 )}
             </div>
 
-            {/* Right: Theme Toggle & User Info */}
+            {/* Right: User Info */}
             <div className="header__right">
-                <button
-                    className="btn-icon theme-toggle"
-                    onClick={toggleTheme}
-                    title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-                >
-                    {theme === 'light' ? <HiMoon size={22} /> : <HiSun size={22} />}
-                </button>
-
-                <div className="header__divider" />
-
                 <div className="header__user">
                     <div className="header__user-info">
                         <span className="header__user-name">{user?.name}</span>

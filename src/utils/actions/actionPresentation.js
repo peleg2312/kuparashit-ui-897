@@ -3,6 +3,7 @@ import { HiCube, HiPlus, HiServer, HiTrash, HiViewGrid } from 'react-icons/hi';
 export const actionIconMap = {
     create: HiPlus,
     delete: HiTrash,
+    break: HiCube,
     createCluster: HiViewGrid,
     createClusterNetapp: HiViewGrid,
     createClusterVmax: HiViewGrid,
@@ -14,6 +15,7 @@ export const actionIconMap = {
 export const actionButtonStyleMap = {
     create: 'btn-primary',
     delete: 'btn-danger',
+    break: 'btn-secondary',
     createCluster: 'btn-secondary',
     createClusterNetapp: 'btn-secondary',
     createClusterVmax: 'btn-secondary',
@@ -24,6 +26,7 @@ export const actionButtonStyleMap = {
 export const actionCardColorMap = {
     create: 'var(--accent)',
     delete: 'var(--error)',
+    break: 'var(--warning)',
     createCluster: 'var(--info)',
     createClusterNetapp: 'var(--info)',
     createClusterVmax: 'var(--warning)',

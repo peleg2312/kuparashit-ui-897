@@ -66,36 +66,42 @@
 }
 
 .action-screen--qtree .action-grid,
-.action-screen--exch .action-grid {
+.action-screen--exch .action-grid,
+.action-screen--snapmirror .action-grid {
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 @media (max-width: 960px) {
     .action-screen--qtree .action-grid,
-    .action-screen--exch .action-grid {
+    .action-screen--exch .action-grid,
+    .action-screen--snapmirror .action-grid {
         grid-template-columns: 1fr;
     }
 
     .action-screen--qtree .action-card,
-    .action-screen--exch .action-card {
+    .action-screen--exch .action-card,
+    .action-screen--snapmirror .action-card {
         padding: 14px;
         gap: 12px;
     }
 
     .action-screen--qtree .action-icon-wrapper,
-    .action-screen--exch .action-icon-wrapper {
+    .action-screen--exch .action-icon-wrapper,
+    .action-screen--snapmirror .action-icon-wrapper {
         width: 48px;
         height: 48px;
         border-radius: 12px;
     }
 
     .action-screen--qtree .action-title,
-    .action-screen--exch .action-title {
+    .action-screen--exch .action-title,
+    .action-screen--snapmirror .action-title {
         font-size: 0.95rem;
     }
 
     .action-screen--qtree .action-desc,
-    .action-screen--exch .action-desc {
+    .action-screen--exch .action-desc,
+    .action-screen--snapmirror .action-desc {
         font-size: 0.8rem;
     }
 }

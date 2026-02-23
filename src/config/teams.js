@@ -15,7 +15,7 @@ const teams = {
         name: 'NASA',
         permissionKey: 'isNasa',
         description: 'NASA Storage Team',
-        screens: ['qtree', 'ds','netapp-upgrade','netapp-multi-exec'],
+        screens: ['qtree', 'snapmirror', 'ds', 'netapp-upgrade', 'netapp-multi-exec'],
         color: '#2196f3',
         image: NasaLogo,
     },
@@ -51,7 +51,7 @@ const teams = {
         name: 'Team49',
         permissionKey: 'is49Client',
         description: '49 Clients',
-        screens: ['qtree'],
+        screens: ['qtree', 'snapmirror'],
         color: '#0ef030',
         image: null,
     },
@@ -104,4 +104,3 @@ export function isScreenAllowed(teamId, screenId) {
     if (team.screens.includes('*')) return true;
     return team.screens.includes(screenId);
 }
-

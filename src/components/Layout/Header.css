@@ -214,16 +214,6 @@
     background: var(--bg-input);
 }
 
-.header__divider {
-    width: 1px;
-    height: 30px;
-    background: var(--border);
-}
-
-.theme-toggle {
-    color: var(--text-secondary);
-}
-
 .header__user {
     display: flex;
     align-items: center;
@@ -278,8 +268,7 @@
     }
 
     .header__team-info,
-    .header__user-info,
-    .header__divider {
+    .header__user-info {
         display: none;
     }
 

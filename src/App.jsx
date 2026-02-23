@@ -10,6 +10,7 @@ import ESXPage from './pages/Dashboard/ESXPage';
 import VMSPage from './pages/Dashboard/VMSPage';
 import ExchPage from './pages/ExchPage';
 import QtreePage from './pages/QtreePage';
+import SnapmirrorPage from './pages/SnapmirrorPage';
 import TroubleshooterPage from './pages/TroubleshooterPage';
 import MdsBuilderPage from './pages/MdsBuilderPage';
 import RefaelToolsPage from './pages/RefaelToolsPage';
@@ -119,6 +120,9 @@ export default function App() {
               } />
               <Route path="/qtree" element={
                 <PermissionRoute screenId="qtree"><QtreePage /></PermissionRoute>
+              } />
+              <Route path="/snapmirror" element={
+                <PermissionRoute screenId="snapmirror"><SnapmirrorPage /></PermissionRoute>
               } />
               <Route path="/troubleshooter" element={
                 <PermissionRoute screenId="troubleshooter"><TroubleshooterPage /></PermissionRoute>

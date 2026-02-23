@@ -12,7 +12,7 @@ export default function ActionScreen({ screenId, title, subtitle, apiService }) 
     const [job, setJob] = useState(null);
 
     const actions = getActionsForScreen(screenId);
-    const shouldHighlightCreate = screenId === 'exch' || screenId === 'qtree';
+    const shouldHighlightCreate = screenId === 'exch' || screenId === 'qtree' || screenId === 'snapmirror';
 
     const handleActionSubmit = async (values) => {
         const action = actions[activeAction];

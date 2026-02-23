@@ -6,7 +6,7 @@ import './ActionModal.css';
 export default function ActionModal({ action, actionKey, screenId, initialValues, onClose, onSubmit }) {
     const { form, dropdown, actions } = useActionModalState({ action, initialValues, onSubmit });
 
-    const useCreateSuccessButton = actionKey === 'create' && (screenId === 'exch' || screenId === 'qtree');
+    const useCreateSuccessButton = actionKey === 'create' && (screenId === 'exch' || screenId === 'qtree' || screenId === 'snapmirror');
 
     if (!action) return null;
 
