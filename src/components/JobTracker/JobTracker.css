@@ -285,6 +285,38 @@
     color: var(--text-secondary);
 }
 
+.job-tracker__result-actions {
+    margin-top: 10px;
+}
+
+.job-tracker__view-result-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    border-color: color-mix(in srgb, var(--accent), var(--border) 42%);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent-subtle), var(--bg-card) 32%) 0%,
+        color-mix(in srgb, var(--accent), var(--bg-card) 78%) 100%
+    );
+    color: color-mix(in srgb, #fff, var(--text-primary) 10%);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--accent), transparent 70%);
+    transition: transform 0.18s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.job-tracker__view-result-btn:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent), var(--border) 20%);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--accent), transparent 62%);
+}
+
+.job-tracker__view-result-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 5px 12px color-mix(in srgb, var(--accent), transparent 72%);
+}
+
 .job-tracker__result--success {
     background: var(--success-bg);
     border-color: color-mix(in srgb, var(--success), var(--border) 35%);

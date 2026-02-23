@@ -1,7 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
-import { HiX, HiCheckCircle, HiXCircle, HiClock, HiRefresh } from 'react-icons/hi';
+import { HiX, HiCheckCircle, HiXCircle, HiClock, HiRefresh, HiExternalLink } from 'react-icons/hi';
 import { mainApi } from '../../api';
+import HerziResultView from '../HerziTools/HerziResultView';
+import '../../pages/HerziToolsPage.css';
 import './JobTracker.css';
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function tryParseStructuredJson(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim().replace(/^\uFEFF/, '');
+    if (!trimmed || !/^[\[{]/.test(trimmed)) return null;
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (isPlainObject(parsed) || Array.isArray(parsed)) return parsed;
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+function extractStructuredActionResult(payload) {
+    const raw = payload?.result;
+    if (isPlainObject(raw) || Array.isArray(raw)) return raw;
+    return tryParseStructuredJson(raw);
+}
 
 function normalizeStatusPayload(payload) {
     const rawSteps = Array.isArray(payload)
@@ -38,12 +63,17 @@ function normalizeStatusPayload(payload) {
         progress,
         message: typeof payload?.message === 'string' ? payload.message : '',
         error: typeof payload?.error === 'string' ? payload.error : '',
+        result: payload?.result
+            ?? payload?.data?.result
+            ?? payload?.payload?.result
+            ?? null,
     };
 }
 
 export default function JobTracker({ job, onClose }) {
     const [statusByJob, setStatusByJob] = useState({});
     const [pollErrorByJob, setPollErrorByJob] = useState({});
+    const [resultPopupOpen, setResultPopupOpen] = useState(false);
     const pollTimerRef = useRef(null);
 
     useEffect(() => {
@@ -79,6 +109,10 @@ export default function JobTracker({ job, onClose }) {
         };
     }, [job?.jobId]);
 
+    useEffect(() => {
+        setResultPopupOpen(false);
+    }, [job?.jobId]);
+
     if (!job) return null;
 
     const statusData = statusByJob[job.jobId] || null;
@@ -87,6 +121,9 @@ export default function JobTracker({ job, onClose }) {
     const completed = statusData?.status === 'success';
     const failed = statusData?.status === 'failed';
     const progress = typeof statusData?.progress === 'number' ? statusData.progress : 0;
+    const structuredResult = extractStructuredActionResult(statusData) || extractStructuredActionResult(job);
+    const responseMessage = statusData?.message || job?.message || '';
+    const canOpenResultPopup = completed && !!structuredResult && !!responseMessage;
 
     const getStepIcon = (status) => {
         switch (status) {
@@ -173,6 +210,17 @@ export default function JobTracker({ job, onClose }) {
                         <div>
                             <h3>Operation Completed Successfully</h3>
                             <p>{statusData?.message || job?.message || 'All backend steps finished successfully.'}</p>
+                            {canOpenResultPopup && (
+                                <div className="job-tracker__result-actions">
+                                    <button
+                                        className="btn btn-secondary job-tracker__view-result-btn"
+                                        onClick={() => setResultPopupOpen(true)}
+                                    >
+                                        <HiExternalLink size={14} />
+                                        View Result
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -197,6 +245,27 @@ export default function JobTracker({ job, onClose }) {
                     </button>
                 </div>
             </div>
+            {resultPopupOpen && canOpenResultPopup && (
+                <div className="modal-overlay" onClick={() => setResultPopupOpen(false)}>
+                    <div className="modal-content herzi-result-modal animate-scale" onClick={(event) => event.stopPropagation()}>
+                        <div className="herzi-result-header">
+                            <div>
+                                <h3>{job?.action ? `Action Result (${job.action})` : 'Action Result'}</h3>
+                                {responseMessage && <p className="herzi-result-subtitle">{responseMessage}</p>}
+                            </div>
+                            <button className="btn-icon" onClick={() => setResultPopupOpen(false)}>
+                                <HiX size={22} />
+                            </button>
+                        </div>
+                        <div className="herzi-result-body">
+                            <HerziResultView value={structuredResult} />
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-primary" onClick={() => setResultPopupOpen(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
