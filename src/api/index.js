@@ -7,4 +7,5 @@ export { priceApi } from './price';
 export { refaelApi } from './refael';
 export { troubleshooterApi } from './troubleshooter';
 export { userManagementApi } from './userManagement';
+export { proactiveApi } from './proactive';
 

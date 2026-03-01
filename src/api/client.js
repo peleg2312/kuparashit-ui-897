@@ -18,6 +18,8 @@ export const API_CONFIG = {
 API_CONFIG.kprBaseUrl = import.meta.env.VITE_KPR_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.exchBaseUrl = import.meta.env.VITE_EXCH_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.troubleshooterBaseUrl = import.meta.env.VITE_TROUBLESHOOTER_API_BASE_URL || API_CONFIG.mainBaseUrl;
+API_CONFIG.proactiveBlockBaseUrl = import.meta.env.VITE_PROACTIVE_BLOCK_API_BASE_URL || API_CONFIG.mainBaseUrl;
+API_CONFIG.proactiveNasaBaseUrl = import.meta.env.VITE_PROACTIVE_NASA_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.kprApiBearerToken = String(
     import.meta.env.VITE_KPR_API_BEARER_TOKEN
     || import.meta.env.VITE_KPR_API_TOKEN
@@ -36,6 +38,7 @@ API_CONFIG.troubleshooterApiBearerToken = String(
     || API_CONFIG.mainApiBearerToken
     || '',
 ).trim();
+API_CONFIG.proactiveTimeoutMs = Number(import.meta.env.VITE_PROACTIVE_TIMEOUT_MS || 180000);
 
 function getCookie(name) {
     if (typeof document === 'undefined') return '';
@@ -160,5 +163,13 @@ export const http = {
         withAuth: true,
         timeoutMs: API_CONFIG.troubleshooterTimeoutMs,
         bearerToken: API_CONFIG.troubleshooterApiBearerToken,
+    }),
+    proactiveBlock: createHttpClient(API_CONFIG.proactiveBlockBaseUrl, {
+        withAuth: false,
+        timeoutMs: API_CONFIG.proactiveTimeoutMs,
+    }),
+    proactiveNasa: createHttpClient(API_CONFIG.proactiveNasaBaseUrl, {
+        withAuth: false,
+        timeoutMs: API_CONFIG.proactiveTimeoutMs,
     }),
 };

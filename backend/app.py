@@ -506,6 +506,96 @@ NETAPP_MACHINES = [
     },
 ]
 
+PROACTIVE_TEST_RESPONSE: dict[str, dict[str, Any]] = {
+    "NA-BLOCK-01": {
+        "type": "netapp",
+        "status": "ERROR",
+        "cluster": "TLV-Cluster-A",
+        "checks": {
+            "cluster_health": {"status": "OK", "message": "All nodes healthy"},
+            "volume_capacity": {
+                "status": "OK",
+                "used_percent": 62.4,
+                "warn_threshold_percent": 80,
+            },
+        },
+    },
+    "VMAX-PROD-01": {
+        "type": "vmax",
+        "000197800123": {
+            "disk_failures": [
+                "Disk DAE7-SLOT11 predicted failure",
+                "Disk DAE9-SLOT03 not responding",
+            ],
+        },
+        "0001252800123": {
+            "disk_failures": [
+                "Disk DAE7-SLOT11 predicted failure",
+                "Disk DAE9-SLOT03 not responding",
+            ],
+            "port_failures": [
+                "Port is Donw Not Good Ata alle",
+                "Disk DAE9-SLOT03 not responding",
+            ],
+        },
+        "status": "ERROR",
+    },
+    "PSTORE-NASA-02": {
+        "type": "powerstore",
+        "status": "ERROR",
+        "alerts": [
+            {"id": "A-3321", "severity": "critical", "text": "Node B battery fault"},
+            {"id": "A-4112", "severity": "major", "text": "Replication session lag high"},
+        ],
+        "checks": {
+            "hardware": {
+                "status": "ERROR",
+                "components": {
+                    "node_a": {"status": "OK"},
+                    "node_b": {
+                        "status": "ERROR",
+                        "battery": {"status": "ERROR", "error_code": "BAT-LOW-17"},
+                    },
+                },
+            },
+            "replication": {
+                "status": "ERROR",
+                "sessions": {
+                    "session_01": {"lag_seconds": 920, "status": "ERROR"},
+                    "session_02": {"lag_seconds": 11, "status": "OK"},
+                },
+            },
+        },
+        "error": {
+            "messages": [
+                "Node B requires maintenance window",
+                "Check remote link bandwidth and replication policy",
+            ],
+        },
+    },
+    "UNITY-LAB-03": {
+        "type": "unity",
+        "status": "OK",
+        "checks": {
+            "sp_health": {
+                "status": "OK",
+                "processors": {
+                    "spa": {"status": "OK", "cpu_percent": 44},
+                    "spb": {"status": "OK", "cpu_percent": 39},
+                },
+            },
+            "pool_usage": {
+                "status": "OK",
+                "pools": {
+                    "pool_01": {"used_percent": 58.1, "status": "OK"},
+                    "pool_02": {"used_percent": 33.7, "status": "OK"},
+                },
+            },
+        },
+        "warnings": [],
+    },
+}
+
 
 def seed_demo_netapps() -> None:
     for idx in range(2, 13):
@@ -1649,6 +1739,12 @@ def get_netapps_contract() -> list[str]:
     return [machine["name"] for machine in NETAPP_MACHINES]
 
 
+@app.get("/proactive")
+@app.get("/proactive/")
+def proactive_contract() -> dict[str, dict[str, Any]]:
+    return PROACTIVE_TEST_RESPONSE
+
+
 @app.get("/exch/volumes")
 def get_exch_volumes() -> list[dict[str, Any]]:
     return EXCH_VOLUMES
@@ -2756,6 +2852,7 @@ def demo_ui_urls() -> dict[str, Any]:
             "troubleshooter": f"{frontend_base}/troubleshooter",
         },
         "backend_samples": {
+            "proactive": f"{backend_base}/proactive/",
             "herzi_unused_luns": f"{backend_base}/unused_luns?data_list%5B%5D=VC-TLV-01",
             "herzi_naa_info": f"{backend_base}/get_naa_information?data_list%5B%5D=naa.6000A0A1B2C30001",
             "herzi_vm_info": f"{backend_base}/get_vm_or_ds_information?data_list%5B%5D=web-prod-001",
@@ -2827,7 +2924,27 @@ def qtree_patch(payload: QtreePatchPayload, network: str) -> dict[str, Any]:
 
 @app.post("/{path:path}")
 def generic_actions(path: str, payload: dict[str, Any]) -> dict[str, Any]:
-    return _create_job(f"/{path}", payload)
+    normalized_path = f"/{str(path or '').strip('/')}"
+    response = _create_job(normalized_path, payload)
+
+    if normalized_path == "/rdm":
+        def _as_positive_int(value: Any, default: int = 1) -> int:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                return default
+            return parsed if parsed > 0 else default
+
+        def _build_naas(prefix: str, count: int) -> list[str]:
+            return [f"naa.demo.{prefix}.{index:03d}" for index in range(1, count + 1)]
+
+        response["result"] = {
+            "data": _build_naas("data", _as_positive_int(payload.get("data_amount"), default=1)),
+            "rec": _build_naas("rec", _as_positive_int(payload.get("rec_amount"), default=1)),
+            "crs": _build_naas("crs", _as_positive_int(payload.get("crs_amount"), default=1)),
+        }
+
+    return response
 
 
 @app.put("/{path:path}")

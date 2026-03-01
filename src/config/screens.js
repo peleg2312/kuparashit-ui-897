@@ -22,6 +22,7 @@ const screens = [
     { id: 'refael', label: 'Refael Tools', path: '/refael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'price', label: 'Price Calculator', path: '/price', icon: HiCurrencyDollar, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'herzitools', label: 'Herzi Tools', path: '/herzi-tools', icon: HiCog, group: 'tools', groupLabel: 'Advanced Tools' },
+    { id: 'proactive', label: 'Proactive', path: '/proactive', icon: HiSearch, group: 'tools', groupLabel: 'Advanced Tools' },
     { id: 'netapp-upgrade', label: 'NetApp Upgrade', path: '/netapp-upgrade', icon: HiTerminal, group: 'netapp', groupLabel: 'NetApp Operations' },
     { id: 'netapp-multi-exec', label: 'NetApp Multi Exec', path: '/netapp-multi-exec', icon: HiLightningBolt, group: 'netapp', groupLabel: 'NetApp Operations' },
     {

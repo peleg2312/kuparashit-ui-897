@@ -18,6 +18,7 @@ import PricePage from './pages/PricePage';
 import HerziToolsPage from './pages/HerziToolsPage';
 import NetappUpgradePage from './pages/NetappUpgradePage';
 import NetappMultiExecPage from './pages/NetappMultiExecPage';
+import ProactivePage from './pages/ProactivePage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -146,6 +147,9 @@ export default function App() {
               } />
               <Route path="/netapp-multi-exec" element={
                 <PermissionRoute screenId="netapp-multi-exec"><NetappMultiExecPage /></PermissionRoute>
+              } />
+              <Route path="/proactive" element={
+                <PermissionRoute screenId="proactive"><ProactivePage /></PermissionRoute>
               } />
               <Route path="/admin/user-management" element={
                 <PermissionRoute screenId="user-management" requireAdmin><UserManagementPage /></PermissionRoute>

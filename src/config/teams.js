@@ -15,7 +15,7 @@ const teams = {
         name: 'NASA',
         permissionKey: 'isNasa',
         description: 'NASA Storage Team',
-        screens: ['qtree', 'snapmirror', 'ds', 'netapp-upgrade', 'netapp-multi-exec'],
+        screens: ['qtree', 'snapmirror', 'ds', 'netapp-upgrade', 'netapp-multi-exec', 'proactive'],
         color: '#2196f3',
         image: NasaLogo,
     },
