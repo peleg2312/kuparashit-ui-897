@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HiExclamationCircle, HiRefresh, HiShieldCheck } from 'react-icons/hi';
 import { proactiveApi } from '@/api';
 import ProactiveMachinePopup from '@/components/Proactive/ProactiveMachinePopup';
@@ -7,10 +7,12 @@ import { useElapsedTimer } from '@/hooks/useElapsedTimer';
 import './ProactivePage.css';
 
 const SUPPORTED_TEAMS = new Set(['BLOCK', 'NASA']);
+const TYPE_FILTER_ALL = '__all__';
 
 export default function ProactivePage() {
     const { currentTeam } = useTeam();
     const [machines, setMachines] = useState([]);
+    const [selectedType, setSelectedType] = useState(TYPE_FILTER_ALL);
     const [running, setRunning] = useState(false);
     const [runError, setRunError] = useState('');
     const [selectedMachine, setSelectedMachine] = useState(null);
@@ -20,15 +22,33 @@ export default function ProactivePage() {
     const teamId = String(currentTeam?.id || '').toUpperCase();
     const canRun = SUPPORTED_TEAMS.has(teamId);
 
+    const typeOptions = useMemo(
+        () => [...new Set(machines.map((machine) => String(machine?.type || '').trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b)),
+        [machines],
+    );
+
+    const filteredMachines = useMemo(() => {
+        if (selectedType === TYPE_FILTER_ALL) return machines;
+        return machines.filter((machine) => String(machine?.type || '').trim() === selectedType);
+    }, [machines, selectedType]);
+
+    useEffect(() => {
+        if (selectedType === TYPE_FILTER_ALL) return;
+        if (!typeOptions.includes(selectedType)) {
+            setSelectedType(TYPE_FILTER_ALL);
+        }
+    }, [selectedType, typeOptions]);
+
     const summary = useMemo(() => {
-        const okCount = machines.filter((machine) => machine.isOk).length;
-        const errorCount = machines.length - okCount;
+        const okCount = filteredMachines.filter((machine) => machine.isOk).length;
+        const errorCount = filteredMachines.length - okCount;
         return {
-            total: machines.length,
+            total: filteredMachines.length,
             ok: okCount,
             error: errorCount,
         };
-    }, [machines]);
+    }, [filteredMachines]);
 
     const handleRunProactive = async () => {
         if (!canRun || running) return;
@@ -94,6 +114,23 @@ export default function ProactivePage() {
                         <span className="badge badge-info">Machines: {summary.total}</span>
                         <span className="badge badge-success">OK: {summary.ok}</span>
                         <span className="badge badge-error">Errors: {summary.error}</span>
+                        <div className="proactive-type-filter">
+                            <label htmlFor="proactive-type-filter" className="proactive-type-filter__label">
+                                Type
+                            </label>
+                            <select
+                                id="proactive-type-filter"
+                                className="select-field select-sm proactive-type-filter__select"
+                                value={selectedType}
+                                onChange={(event) => setSelectedType(event.target.value)}
+                                disabled={!machines.length}
+                            >
+                                <option value={TYPE_FILTER_ALL}>All</option>
+                                {typeOptions.map((type) => (
+                                    <option key={type} value={type}>{type}</option>
+                                ))}
+                            </select>
+                        </div>
                         {lastRunAt && (
                             <span className="proactive-last-run">
                                 Last run: {lastRunAt.toLocaleTimeString()}
@@ -138,8 +175,18 @@ export default function ProactivePage() {
                                         Run Proactive
                                     </button>
                                 </div>
+                            ) : !filteredMachines.length ? (
+                                <div className="proactive-empty-state">
+                                    <div className="proactive-empty-state__icon" aria-hidden="true">
+                                        <HiShieldCheck size={24} />
+                                    </div>
+                                    <h3 className="proactive-empty-state__title">No Machines For This Type</h3>
+                                    <p className="proactive-empty-state__text">
+                                        No machines matched the selected type filter. Try selecting another type or choose All.
+                                    </p>
+                                </div>
                             ) : (
-                                machines.map((machine, index) => {
+                                filteredMachines.map((machine, index) => {
                                     return (
                                         <button
                                             key={`${machine.name}-${index}`}

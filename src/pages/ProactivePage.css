@@ -35,6 +35,25 @@
     flex-wrap: wrap;
 }
 
+.proactive-type-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.proactive-type-filter__label {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.proactive-type-filter__select {
+    min-width: 190px;
+}
+
 .proactive-last-run {
     color: var(--text-secondary);
     font-size: 0.84rem;
@@ -387,6 +406,16 @@
 @media (max-width: 960px) {
     .proactive-card {
         padding: 14px;
+    }
+
+    .proactive-type-filter {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .proactive-type-filter__select {
+        width: 100%;
+        min-width: 0;
     }
 
     .proactive-empty-state {
