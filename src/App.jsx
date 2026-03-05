@@ -22,6 +22,7 @@ import ProactivePage from './pages/ProactivePage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/LoginPage/LoginPage';
+import { getLastPathForTeam } from './utils/workspacePreferences';
 import './App.css';
 
 function AppLoading() {
@@ -38,8 +39,12 @@ function HomeRedirect() {
   const { currentTeam } = useTeam();
   const allowed = currentTeam?.screens || [];
   const groups = getScreensByGroup(allowed, { isAdmin });
-  const firstGroup = Object.values(groups)[0];
-  const path = firstGroup?.screens?.[0]?.path || '/dashboard/rdm';
+  const orderedScreens = Object.values(groups).flatMap((group) => group.screens || []);
+  const fallbackPath = orderedScreens[0]?.path || '/dashboard/rdm';
+  const lastPath = getLastPathForTeam(currentTeam?.id);
+  const path = orderedScreens.some((screen) => lastPath.startsWith(screen.path))
+    ? lastPath
+    : fallbackPath;
   return <Navigate to={path} replace />;
 }
 

@@ -1,9 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import teams, { isScreenAllowed } from '../config/teams';
 import { useAuth } from './AuthContext';
 import screens, { getScreenById, getScreensByGroup } from '../config/screens';
+import {
+    getLastPathForTeam,
+    loadPreferredTeamId,
+    saveLastPathForTeam,
+    savePreferredTeamId,
+} from '../utils/workspacePreferences';
 
 const TeamContext = createContext(null);
 
@@ -17,6 +23,21 @@ function getFirstAllowedPath(team) {
 function getCurrentScreenId(pathname) {
     const matched = screens.find((screen) => pathname.startsWith(screen.path));
     return matched?.id;
+}
+
+function isScreenAllowedForTeam(team, screenId) {
+    if (!team || !screenId) return false;
+    if (team.id === 'PERMISSIONS') {
+        if (team.screens.includes('*')) return true;
+        return team.screens.includes(screenId);
+    }
+    return isScreenAllowed(team.id, screenId);
+}
+
+function isPathAllowedForTeam(team, pathname) {
+    const screenId = getCurrentScreenId(pathname);
+    if (!screenId) return false;
+    return isScreenAllowedForTeam(team, screenId);
 }
 
 export function TeamProvider({ children }) {
@@ -52,7 +73,7 @@ export function TeamProvider({ children }) {
         return permissionTeam ? [permissionTeam] : [];
     }, [user, permissionTeam]);
 
-    const [currentTeamId, setCurrentTeamId] = useState(null);
+    const [currentTeamId, setCurrentTeamId] = useState(() => loadPreferredTeamId());
 
     const currentTeam = useMemo(() => {
         if (!userTeams.length) return null;
@@ -60,15 +81,30 @@ export function TeamProvider({ children }) {
         return preferred || userTeams[0];
     }, [userTeams, currentTeamId]);
 
+    useEffect(() => {
+        if (!currentTeam?.id) return;
+        savePreferredTeamId(currentTeam.id);
+    }, [currentTeam]);
+
+    useEffect(() => {
+        if (!currentTeam?.id) return;
+        if (!isPathAllowedForTeam(currentTeam, location.pathname)) return;
+        saveLastPathForTeam(currentTeam.id, location.pathname);
+    }, [currentTeam, location.pathname]);
+
     const switchTeam = (teamId) => {
         const team = userTeams.find((item) => item.id === teamId);
         if (!team) return;
 
         setCurrentTeamId(team.id);
-        const screenId = getCurrentScreenId(location.pathname);
-        const canStay = !screenId || isScreenAllowed(team.id, screenId);
+        savePreferredTeamId(team.id);
+
+        const canStay = isPathAllowedForTeam(team, location.pathname);
         if (!canStay) {
-            navigate(getFirstAllowedPath(team), { replace: true });
+            const lastTeamPath = getLastPathForTeam(team.id);
+            const fallbackPath = getFirstAllowedPath(team);
+            const targetPath = isPathAllowedForTeam(team, lastTeamPath) ? lastTeamPath : fallbackPath;
+            navigate(targetPath, { replace: true });
         }
     };
 
@@ -80,11 +116,7 @@ export function TeamProvider({ children }) {
             return isAdmin;
         }
 
-        if (currentTeam.id === 'PERMISSIONS') {
-            if (currentTeam.screens.includes('*')) return true;
-            return currentTeam.screens.includes(screenId);
-        }
-        return isScreenAllowed(currentTeam.id, screenId);
+        return isScreenAllowedForTeam(currentTeam, screenId);
     };
 
     return (

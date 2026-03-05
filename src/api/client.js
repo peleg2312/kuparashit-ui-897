@@ -38,7 +38,6 @@ API_CONFIG.troubleshooterApiBearerToken = String(
     || API_CONFIG.mainApiBearerToken
     || '',
 ).trim();
-API_CONFIG.proactiveTimeoutMs = Number(import.meta.env.VITE_PROACTIVE_TIMEOUT_MS || 180000);
 
 function getCookie(name) {
     if (typeof document === 'undefined') return '';
@@ -166,10 +165,8 @@ export const http = {
     }),
     proactiveBlock: createHttpClient(API_CONFIG.proactiveBlockBaseUrl, {
         withAuth: false,
-        timeoutMs: API_CONFIG.proactiveTimeoutMs,
     }),
     proactiveNasa: createHttpClient(API_CONFIG.proactiveNasaBaseUrl, {
         withAuth: false,
-        timeoutMs: API_CONFIG.proactiveTimeoutMs,
     }),
 };
