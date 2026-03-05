@@ -3,39 +3,87 @@ import { HiRefresh, HiSearch } from 'react-icons/hi';
 import { troubleshooterApi } from '@/api';
 import TroubleshooterChoiceField from '@/components/Troubleshooter/TroubleshooterChoiceField';
 import TroubleshooterLoadingPanel from '@/components/Troubleshooter/TroubleshooterLoadingPanel';
+import TroubleshooterModeTabs from '@/components/Troubleshooter/TroubleshooterModeTabs';
+import TroubleshooterNaasInputField from '@/components/Troubleshooter/TroubleshooterNaasInputField';
 import TroubleshooterResultPopup from '@/components/Troubleshooter/TroubleshooterResultPopup';
 import { TROUBLESHOOTER_MODE_CONFIG } from '@/config/troubleshooterModes';
 import { useElapsedTimer } from '@/hooks/useElapsedTimer';
 import { useTroubleshooterOptions } from '@/hooks/useTroubleshooterOptions';
-import { formatJsonOutput, parseNaasInput } from '@/utils/troubleshooterUtils';
+import { parseNaasInput } from '@/utils/troubleshooterUtils';
 import './TroubleshooterPage.css';
 
-function ModeTabs({ activeModeKey, running, onSelectMode }) {
-    return (
-        <div className="ts-mode-tabs">
-            {Object.values(TROUBLESHOOTER_MODE_CONFIG).map((mode) => {
-                const ModeIcon = mode.icon;
-                const isActive = activeModeKey === mode.key;
-                return (
-                    <button
-                        key={mode.key}
-                        type="button"
-                        className={`ts-mode-tab ${isActive ? 'ts-mode-tab--active' : ''}`}
-                        style={isActive ? { borderColor: mode.color, color: mode.color } : {}}
-                        disabled={running}
-                        onClick={() => onSelectMode(mode.key)}
-                    >
-                        <span className="ts-mode-tab__dot" style={{ background: mode.color }} />
-                        <ModeIcon size={16} />
-                        {mode.label}
-                    </button>
-                );
-            })}
-        </div>
-    );
+const NAAS_SITE_OPTIONS = [
+    { value: 'five', label: 'five' },
+    { value: 'nova', label: 'nova' },
+];
+const NAAS_SITE_VALUES = new Set(NAAS_SITE_OPTIONS.map((site) => site.value));
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function padDateValue(value) {
+    return String(value).padStart(2, '0');
+}
+
+function getDefaultNaasDateTime() {
+    const currentDate = new Date();
+    currentDate.setSeconds(0, 0);
+
+    const year = currentDate.getFullYear();
+    const month = padDateValue(currentDate.getMonth() + 1);
+    const day = padDateValue(currentDate.getDate());
+    const hours = padDateValue(currentDate.getHours());
+    const minutes = padDateValue(currentDate.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function toUtcTimestamp(localDateTime) {
+    const rawValue = String(localDateTime || '').trim();
+    if (!rawValue) return '';
+
+    const parsedDate = new Date(rawValue);
+    if (Number.isNaN(parsedDate.getTime())) return '';
+
+    return parsedDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function looksLikeStructuredResultMap(value) {
+    if (!isPlainObject(value)) return false;
+    const entries = Object.entries(value);
+    if (!entries.length) return false;
+    return entries.every(([key, entryValue]) => String(key || '').trim() && isPlainObject(entryValue));
+}
+
+function normalizeTimedFlowResult(response) {
+    const timestampKey = toUtcTimestamp(getDefaultNaasDateTime());
+    if (!timestampKey) return response;
+
+    if (looksLikeStructuredResultMap(response)) {
+        const entries = Object.entries(response);
+        if (entries.length === 1) {
+            return { [timestampKey]: entries[0][1] };
+        }
+        return response;
+    }
+
+    if (isPlainObject(response)) {
+        const payload = Object.prototype.hasOwnProperty.call(response, 'problems')
+            ? response
+            : { problems: [], ...response };
+        return { [timestampKey]: payload };
+    }
+
+    return {
+        [timestampKey]: {
+            problems: [],
+            response: [String(response ?? '')],
+        },
+    };
 }
 
 export default function TroubleshooterPage() {
+    const defaultNaasDateTime = useMemo(() => getDefaultNaasDateTime(), []);
     const [activeModeKey, setActiveModeKey] = useState('vc');
     const [vcSearch, setVcSearch] = useState('');
     const [netappSearch, setNetappSearch] = useState('');
@@ -43,6 +91,8 @@ export default function TroubleshooterPage() {
         vc_name: '',
         netapp_name: '',
         naas_raw: '',
+        naas_site: 'five',
+        naas_datetime_local: defaultNaasDateTime,
     });
     const [running, setRunning] = useState(false);
     const [runError, setRunError] = useState('');
@@ -79,6 +129,14 @@ export default function TroubleshooterPage() {
         }));
     }, [netappOptions, vcOptions]);
 
+    const setNaasToNow = () => {
+        const latest = getDefaultNaasDateTime();
+        setValues((prev) => ({
+            ...prev,
+            naas_datetime_local: latest,
+        }));
+    };
+
     const runTroubleshooter = async () => {
         setRunError('');
         setRunning(true);
@@ -89,22 +147,37 @@ export default function TroubleshooterPage() {
             if (activeModeKey === 'vc') {
                 if (!values.vc_name) throw new Error('Please select a vCenter.');
                 response = await troubleshooterApi.byVCenter(values.vc_name);
+                response = normalizeTimedFlowResult(response);
                 title = 'vCenter Troubleshooter';
             } else if (activeModeKey === 'netapp') {
                 if (!values.netapp_name) throw new Error('Please select a NetApp.');
                 response = await troubleshooterApi.byNetapp(values.netapp_name);
+                response = normalizeTimedFlowResult(response);
                 title = 'NetApp Troubleshooter';
             } else {
                 const naas = parseNaasInput(values.naas_raw);
                 if (!naas.length) throw new Error('Please enter at least one NAA.');
-                response = await troubleshooterApi.byNaas(naas);
+                const selectedSite = String(values.naas_site || '').trim().toLowerCase();
+                if (!NAAS_SITE_VALUES.has(selectedSite)) {
+                    throw new Error('Please choose a valid site.');
+                }
+
+                const utcTimestamp = toUtcTimestamp(values.naas_datetime_local);
+                if (!utcTimestamp) {
+                    throw new Error('Please choose a valid date and time.');
+                }
+
+                response = await troubleshooterApi.byNaas(naas, {
+                    site: selectedSite,
+                    time: utcTimestamp,
+                });
                 title = 'NAA Troubleshooter';
             }
 
             setResultModal({
                 title,
                 color: activeMode.color,
-                result: formatJsonOutput(response),
+                result: response,
             });
         } catch (error) {
             setRunError(error?.message || 'Troubleshooter run failed.');
@@ -129,9 +202,9 @@ export default function TroubleshooterPage() {
                     <section className="glass-card ts-hero" style={{ '--ts-accent': activeMode.color }}>
                         <div className="ts-hero__intro">
                             <h2>Choose a Troubleshooter flow</h2>
-                            <p>Run one focused diagnostic route at a time and inspect the JSON result in popup.</p>
+                            <p>Run one focused diagnostic route at a time and inspect structured findings in popup.</p>
                         </div>
-                        <ModeTabs
+                        <TroubleshooterModeTabs
                             activeModeKey={activeModeKey}
                             running={running}
                             onSelectMode={(modeKey) => {
@@ -198,26 +271,18 @@ export default function TroubleshooterPage() {
                                     )}
 
                                     {activeModeKey === 'naas' && (
-                                        <div className="ts-field ts-input-block">
-                                            <label className="ts-label">NAA List ({naasCount})</label>
-                                            <textarea
-                                                className="input-field ts-naas-input"
-                                                rows={6}
-                                                value={values.naas_raw}
-                                                onChange={(event) => setValues((prev) => ({ ...prev, naas_raw: event.target.value }))}
-                                                placeholder="Paste NAAs separated by comma, space, or new line"
-                                            />
-                                            {!!naasCount && (
-                                                <div className="ts-naas-preview">
-                                                    {parsedNaas.slice(0, 12).map((naa) => (
-                                                        <span key={naa} className="ts-naas-chip">{naa}</span>
-                                                    ))}
-                                                    {naasCount > 12 && (
-                                                        <span className="ts-naas-chip ts-naas-chip--more">+{naasCount - 12} more</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                                        <TroubleshooterNaasInputField
+                                            siteOptions={NAAS_SITE_OPTIONS}
+                                            siteValue={values.naas_site}
+                                            dateTimeValue={values.naas_datetime_local}
+                                            naasRawValue={values.naas_raw}
+                                            naasCount={naasCount}
+                                            parsedNaas={parsedNaas}
+                                            onSiteChange={(value) => setValues((prev) => ({ ...prev, naas_site: value }))}
+                                            onDateTimeChange={(value) => setValues((prev) => ({ ...prev, naas_datetime_local: value }))}
+                                            onNaasRawChange={(value) => setValues((prev) => ({ ...prev, naas_raw: value }))}
+                                            onUseNow={setNaasToNow}
+                                        />
                                     )}
                                 </>
                             )}

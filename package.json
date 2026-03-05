@@ -17,6 +17,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
+    "react-native-ui-datepicker": "^3.1.2",
+    "react-native-web": "^0.21.2",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {

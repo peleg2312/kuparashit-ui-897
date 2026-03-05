@@ -661,6 +661,8 @@ class TroubleshooterNetappRequest(BaseModel):
 
 class TroubleshooterNaasRequest(BaseModel):
     naas: list[str]
+    site: str
+    time: str
 
 
 class QtreeBasePayload(BaseModel):
@@ -715,6 +717,75 @@ async def apply_troubleshooter_delay() -> None:
     if TROUBLESHOOTER_DELAY_MS <= 0:
         return
     await asyncio.sleep(TROUBLESHOOTER_DELAY_MS / 1000)
+
+
+def parse_utc_timestamp_z(timestamp: str | None) -> datetime:
+    raw_timestamp = str(timestamp or "").strip()
+    if not raw_timestamp:
+        raise HTTPException(status_code=400, detail="time is required.")
+    if not raw_timestamp.endswith("Z"):
+        raise HTTPException(status_code=400, detail="time must be UTC timestamp ending with Z.")
+
+    try:
+        parsed = datetime.strptime(raw_timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid time format. Expected YYYY-MM-DDTHH:MM:SSZ.",
+        ) from error
+
+    return parsed.replace(tzinfo=timezone.utc)
+
+
+def utc_timestamp_z(value: datetime | None = None) -> str:
+    current = value.astimezone(timezone.utc) if value else datetime.now(timezone.utc)
+    return current.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def build_troubleshooter_entry(
+    key: str,
+    mode: str,
+    site: str,
+    requested_time: str,
+    found: bool,
+    details: dict[str, Any] | None = None,
+) -> dict[str, list[str]]:
+    details_summary = json.dumps(details or {}, indent=2, ensure_ascii=True)
+    common_prefix = f"Flow: {mode}\nTarget: {key}\nSite: {site}\nRequested time: {requested_time}"
+
+    if found:
+        problems = [
+            f"{common_prefix}\nStatus: record found",
+            "Path check: warning\nObserved intermittent latency on one fabric path.\nRecommendation: verify zoning and queue depth.",
+        ]
+        luns = [
+            f"LUN: {key}-001\nState: mapped\nI/O profile: bursty\nObservation time: {requested_time}",
+            f"LUN: {key}-002\nState: mapped\nMultipath: degraded on one path\nRecommendation: inspect HBA failover.",
+        ]
+        ports = [
+            f"Port: FA-1A\nStatus: online\nQueue depth: 87%\nAlert: near threshold.",
+            "Port: FA-2B\nStatus: online\nCRC errors: 0\nLink resets: 1 in last 24h.",
+        ]
+    else:
+        problems = [
+            f"{common_prefix}\nStatus: no record found",
+            "Inventory match was not found for the supplied key.\nRecommendation: validate the identifier and retry.",
+        ]
+        luns = [
+            f"No LUN mapping found for {key}.\nSite checked: {site}\nTimestamp: {requested_time}",
+        ]
+        ports = [
+            f"No port correlation found for {key}.\nSite checked: {site}\nTimestamp: {requested_time}",
+        ]
+
+    return {
+        "problems": problems,
+        "luns": luns,
+        "ports": ports,
+        "context": [
+            f"Details snapshot:\n{details_summary}",
+        ],
+    }
 
 
 def permissions_for_teams(teams: list[str]) -> list[str]:
@@ -2416,15 +2487,24 @@ async def troubleshooter_vc(payload: TroubleshooterVCRequest) -> dict[str, Any]:
 
     vc_meta = VC_META.get(vc_name, {})
     clusters = sorted((INVENTORY.get(vc_name) or {}).keys())
-    return {
-        "mode": "vc",
-        "vc_name": vc_name,
-        "found": bool(vc_meta or clusters),
+    found = bool(vc_meta or clusters)
+    details = {
         "vcenter": vc_meta or None,
         "clusters": clusters,
         "clustersCount": len(clusters),
         "delayMs": TROUBLESHOOTER_DELAY_MS,
         "generatedAt": now_iso(),
+    }
+    requested_time = utc_timestamp_z()
+    return {
+        vc_name: build_troubleshooter_entry(
+            key=vc_name,
+            mode="vc",
+            site="five",
+            requested_time=requested_time,
+            found=found,
+            details=details,
+        )
     }
 
 
@@ -2437,13 +2517,22 @@ async def troubleshooter_netapp(payload: TroubleshooterNetappRequest) -> dict[st
     await apply_troubleshooter_delay()
 
     machine = find_netapp_machine(netapp_name)
-    return {
-        "mode": "netapp",
-        "netapp_name": netapp_name,
-        "found": bool(machine),
+    found = bool(machine)
+    details = {
         "netapp": machine,
         "delayMs": TROUBLESHOOTER_DELAY_MS,
         "generatedAt": now_iso(),
+    }
+    requested_time = utc_timestamp_z()
+    return {
+        netapp_name: build_troubleshooter_entry(
+            key=netapp_name,
+            mode="netapp",
+            site="five",
+            requested_time=requested_time,
+            found=found,
+            details=details,
+        )
     }
 
 
@@ -2452,6 +2541,9 @@ async def troubleshooter_naas(payload: TroubleshooterNaasRequest) -> dict[str, A
     cleaned_naas = [str(item).strip() for item in (payload.naas or []) if str(item).strip()]
     if not cleaned_naas:
         raise HTTPException(status_code=400, detail="naas list is required.")
+    site = normalize_site(payload.site)
+    parsed_timestamp = parse_utc_timestamp_z(payload.time)
+    requested_time = utc_timestamp_z(parsed_timestamp)
 
     await apply_troubleshooter_delay()
 
@@ -2460,30 +2552,19 @@ async def troubleshooter_naas(payload: TroubleshooterNaasRequest) -> dict[str, A
         for item in flatten_rdms()
         if str(item.get("naa") or "").strip()
     }
-    results = []
-    for naa in cleaned_naas:
+    response: dict[str, Any] = {}
+    for naa in dict.fromkeys(cleaned_naas):
         details = rdms_by_naa.get(naa)
-        results.append(
-            {
-                "naa": naa,
-                "found": bool(details),
-                "details": details,
-            }
+        response[naa] = build_troubleshooter_entry(
+            key=naa,
+            mode="naas",
+            site=site,
+            requested_time=requested_time,
+            found=bool(details),
+            details=details,
         )
 
-    found_count = sum(1 for item in results if item["found"])
-    return {
-        "mode": "naas",
-        "naas": cleaned_naas,
-        "results": results,
-        "summary": {
-            "total": len(results),
-            "found": found_count,
-            "missing": len(results) - found_count,
-        },
-        "delayMs": TROUBLESHOOTER_DELAY_MS,
-        "generatedAt": now_iso(),
-    }
+    return response
 
 
 @app.get("/multi_command")

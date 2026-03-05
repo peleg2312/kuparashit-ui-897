@@ -13,13 +13,17 @@ export const troubleshooterApi = {
         }));
     },
 
-    async byNaas(naas = []) {
+    async byNaas(naas = [], { site, time } = {}) {
         const normalizedNaas = Array.isArray(naas)
             ? naas.map((item) => String(item || '').trim()).filter(Boolean)
             : [];
+        const normalizedSite = String(site || '').trim().toLowerCase();
+        const normalizedTime = String(time || '').trim();
 
         return runApiRequest('troubleshooter.byNaas', () => http.troubleshooter.post('/naas', {
             naas: normalizedNaas,
+            site: normalizedSite,
+            time: normalizedTime,
         }));
     },
 };

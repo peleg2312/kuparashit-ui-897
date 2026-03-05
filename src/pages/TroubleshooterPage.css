@@ -198,6 +198,226 @@
     resize: vertical;
 }
 
+.ts-naas-meta__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ts-naas-now-btn {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    gap: 6px;
+}
+
+.ts-naas-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ts-site-select {
+    position: relative;
+}
+
+.ts-site-select__trigger {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.ts-site-select__trigger:hover {
+    border-color: var(--border-hover);
+}
+
+.ts-site-select__trigger.is-open {
+    border-color: var(--ts-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent), transparent 84%);
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 20%);
+}
+
+.ts-site-select__value {
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.ts-site-select__chevron {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+}
+
+.ts-site-select__chevron.is-open {
+    transform: rotate(180deg);
+}
+
+.ts-site-select__menu {
+    position: absolute;
+    z-index: 35;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--border), var(--text-primary) 8%);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary), var(--bg-card) 18%),
+            color-mix(in srgb, var(--bg-secondary), #000 2%)
+        );
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(8px);
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.ts-site-select__option {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: color-mix(in srgb, var(--bg-input), transparent 55%);
+    color: var(--text-primary);
+    text-align: left;
+    transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ts-site-select__option:hover {
+    border-color: color-mix(in srgb, var(--border-hover), transparent 5%);
+    background: color-mix(in srgb, var(--bg-input), transparent 18%);
+}
+
+.ts-site-select__option.is-selected {
+    border-color: color-mix(in srgb, var(--ts-accent), transparent 52%);
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 22%);
+}
+
+.ts-site-select__option:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-accent), transparent 82%);
+}
+
+.ts-site-select__check {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.ts-site-select__check.is-selected {
+    border-color: var(--ts-accent);
+    background: var(--ts-accent);
+    color: #fff;
+}
+
+.ts-site-select__label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.ts-datetime-picker {
+    position: relative;
+    min-height: 46px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.ts-datetime-picker:hover {
+    border-color: var(--border-hover);
+}
+
+.ts-datetime-picker:focus-within {
+    border-color: var(--ts-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent), transparent 84%);
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 20%);
+}
+
+.ts-datetime-picker__value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.ts-datetime-picker__value.is-placeholder {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.ts-datetime-picker__icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.ts-datetime-picker__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 40;
+    width: min(390px, calc(100vw - 48px));
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 62%);
+    border-radius: var(--radius-md);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary), var(--bg-card) 16%),
+            color-mix(in srgb, var(--bg-secondary), #000 2%)
+        );
+    box-shadow: var(--shadow-md);
+    padding: 10px;
+}
+
+.ts-datetime-picker__menu--portal {
+    position: fixed;
+    z-index: 990;
+    top: auto;
+    left: auto;
+    width: auto;
+    max-height: var(--ts-datetime-menu-max-height, 420px);
+    overflow: auto;
+}
+
+.ts-rn-datetime-picker {
+    width: 100%;
+}
+
 .ts-choice-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 210px));
@@ -414,7 +634,7 @@
 }
 
 .ts-result-modal {
-    width: min(920px, 100%);
+    width: min(980px, 100%);
 }
 
 .ts-result-modal__body {
@@ -422,15 +642,300 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-input);
-    overflow: hidden;
+    overflow: auto;
+    max-height: min(62vh, 620px);
+    padding: 12px;
 }
 
-.ts-result-modal__body pre {
+.ts-result-entries {
+    display: grid;
+    gap: 12px;
+}
+
+.ts-result-entry {
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 74%);
+    border-radius: 12px;
+    background: linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--ts-accent), transparent 93%) 0%,
+        var(--bg-card) 100%
+    );
+    padding: 12px;
+    display: grid;
+    gap: 12px;
+}
+
+.ts-result-entry__input {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 74%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 44%);
+    padding: 4px 12px;
+}
+
+.ts-result-entry__input-label {
+    color: var(--text-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.ts-result-entry__input-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ts-result-entry__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ts-result-entry__meta {
+    flex: 0 0 auto;
+    border-radius: 9px;
+    border: 1px solid color-mix(in srgb, var(--info), var(--border) 58%);
+    background: color-mix(in srgb, var(--info-bg), var(--bg-card) 18%);
+    color: color-mix(in srgb, var(--info), #000 10%);
+    font-size: 0.73rem;
+    font-weight: 800;
+    line-height: 1.1;
+    padding: 6px 10px;
+}
+
+.ts-result-entry__meta--problem {
+    border-color: color-mix(in srgb, var(--error), var(--border) 44%);
+    background: color-mix(in srgb, var(--error-bg), var(--bg-card) 20%);
+    color: color-mix(in srgb, var(--error), #000 8%);
+}
+
+.ts-result-section {
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 78%);
+    border-radius: 10px;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-card), var(--bg-input) 18%) 0%,
+        color-mix(in srgb, var(--bg-card), var(--bg-input) 42%) 100%
+    );
+    padding: 9px;
+    display: grid;
+    gap: 10px;
+}
+
+.ts-result-section--problems {
+    border-color: color-mix(in srgb, var(--error), var(--border) 52%);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--error-bg), var(--bg-card) 24%) 0%,
+        color-mix(in srgb, var(--bg-card), var(--bg-input) 36%) 100%
+    );
+}
+
+.ts-result-section__toggle {
+    width: 100%;
+    text-align: left;
+    border-radius: 8px;
+    padding: 6px 8px;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), transparent 82%);
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 45%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.ts-result-section__toggle:hover {
+    border-color: color-mix(in srgb, var(--ts-accent), var(--border) 62%);
+    background: color-mix(in srgb, var(--bg-card-hover), var(--bg-input) 40%);
+}
+
+.ts-result-section__toggle-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+}
+
+.ts-result-section__count {
+    min-width: 24px;
+    min-height: 22px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 66%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 89%);
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 38%);
+    font-size: 0.7rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ts-result-section__header h4 {
+    font-size: 0.84rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+}
+
+.ts-result-section__header p {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.ts-result-lines {
+    display: grid;
+    gap: 8px;
+}
+
+.ts-result-line {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: flex-start;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 78%);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 42%);
+    padding: 10px 11px;
+}
+
+.ts-result-line--problem {
+    border-color: color-mix(in srgb, var(--error), var(--border) 48%);
+    background: color-mix(in srgb, var(--error-bg), var(--bg-card) 28%);
+}
+
+.ts-result-line__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ts-accent), transparent 84%);
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 34%);
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+}
+
+.ts-result-line--problem .ts-result-line__index {
+    background: color-mix(in srgb, var(--error), transparent 82%);
+    color: color-mix(in srgb, var(--error), #000 8%);
+}
+
+.ts-result-line__text {
+    min-width: 0;
+}
+
+.ts-result-text-block {
+    display: grid;
+    gap: 7px;
+}
+
+.ts-result-text-main {
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.42;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.ts-result-text-details {
+    display: grid;
+    gap: 5px;
+}
+
+.ts-result-text-detail {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ts-result-text-key {
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.ts-result-text-value {
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    line-height: 1.44;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.ts-result-json {
+    margin: 0;
+    border: 1px dashed color-mix(in srgb, var(--ts-accent), var(--border) 76%);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 18%);
+    padding: 10px;
+    max-height: 260px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.77rem;
+    color: var(--text-primary);
+}
+
+.ts-result-empty {
+    border: 1px dashed color-mix(in srgb, var(--ts-accent), var(--border) 74%);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 25%);
+}
+
+.ts-result-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ts-result-toggle-btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 0.77rem;
+    font-weight: 700;
+    gap: 6px;
+}
+
+.ts-result-extra-sections {
+    display: grid;
+    gap: 10px;
+}
+
+.ts-result-fallback-pre {
     margin: 0;
     padding: 14px;
     max-height: min(56vh, 540px);
     overflow: auto;
     white-space: pre-wrap;
+    word-break: break-word;
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.81rem;
     color: var(--text-primary);
@@ -559,6 +1064,10 @@
         padding: 16px;
     }
 
+    .ts-naas-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .ts-choice-toolbar {
         flex-direction: column;
         align-items: stretch;
@@ -590,5 +1099,33 @@
         grid-template-columns: 1fr;
         text-align: center;
         justify-items: center;
+    }
+
+    .ts-result-entry__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 620px) {
+    .ts-naas-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .ts-naas-meta__header {
+        align-items: stretch;
+    }
+
+    .ts-naas-now-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ts-result-line {
+        grid-template-columns: 1fr;
+    }
+
+    .ts-result-line__index {
+        width: fit-content;
     }
 }

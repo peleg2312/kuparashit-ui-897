@@ -12,7 +12,7 @@ function isPlainObject(value) {
 function tryParseStructuredJson(value) {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim().replace(/^\uFEFF/, '');
-    if (!trimmed || !/^[\[{]/.test(trimmed)) return null;
+    if (!trimmed || !/^[[{]/.test(trimmed)) return null;
     try {
         const parsed = JSON.parse(trimmed);
         if (isPlainObject(parsed) || Array.isArray(parsed)) return parsed;
