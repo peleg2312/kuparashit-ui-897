@@ -16,6 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from pydantic import BaseModel
+try:
+    from catalog import register_catalog_routes
+except ImportError:  # pragma: no cover - supports running from repo root via backend.app
+    from backend.catalog import register_catalog_routes
 
 app = FastAPI(title="Kupa Rashit Demo API", version="2.0.0")
 
@@ -93,8 +97,8 @@ ADMIN_PERMISSION_ID = "isAdmin"
 USER_MANAGEMENT_PERMISSION_ID = "user-management"
 
 TEAM_PERMISSIONS = {
-    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder"],
-    "NASA": ["qtree", "ds"],
+    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder", "dashy"],
+    "NASA": ["qtree", "ds", "dashy"],
     "Shimiada": ["price", "refael"],
     "Vans": ["herzitools"],
     "Virtu": ["esx"],
@@ -2920,7 +2924,7 @@ def _require_network(network: str | None) -> str:
 @app.get("/demo/ui-urls")
 def demo_ui_urls() -> dict[str, Any]:
     frontend_base = "http://localhost:5173"
-    backend_base = "http://localhost:8000"
+    backend_base = "http://localhost:80"
     return {
         "frontend": {
             "login": f"{frontend_base}/login",
@@ -2943,6 +2947,9 @@ def demo_ui_urls() -> dict[str, Any]:
             "download_rdm": f"{backend_base}/download/rdm",
         },
     }
+
+
+register_catalog_routes(app, resolve_team_name=resolve_team_name)
 
 
 @app.post("/qtree")

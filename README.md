@@ -16,6 +16,8 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+set MONGO_URI=mongodb://127.0.0.1:27017
+set MONGO_DB_NAME=kupa_rashit
 uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -46,6 +48,20 @@ Demo users:
 ```bash
 docker compose up --build
 ```
+
+This now starts:
+- `api` on `http://127.0.0.1:8000`
+- `ui` on `http://127.0.0.1:5173`
+- `mongo` on `mongodb://127.0.0.1:27017`
+
+### Dashy
+
+- New screen: `/dashy`
+- Team scoped data in MongoDB
+- One metadata collection: `catalog_type_definitions`
+- One object collection per team+type (`catalog__{team}__{type}`)
+- `name` is required and unique per type; `url` is optional
+- Dynamic schema fields per type with field-level hide-only removal
 
 ## Production Templates
 

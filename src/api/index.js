@@ -8,4 +8,5 @@ export { refaelApi } from './refael';
 export { troubleshooterApi } from './troubleshooter';
 export { userManagementApi } from './userManagement';
 export { proactiveApi } from './proactive';
+export { objectCatalogApi } from './objectCatalog';
 
