@@ -32,6 +32,26 @@ function csvCell(value) {
     return `"${escaped}"`;
 }
 
+function inferFieldType(value) {
+    if (value == null) return 'string';
+    if (typeof value === 'boolean') return 'boolean';
+    if (typeof value === 'number') return 'number';
+    if (Array.isArray(value)) return 'array';
+    if (typeof value === 'object') return 'dict';
+    return 'string';
+}
+
+function fieldLabelFromKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'Field';
+    return raw
+        .replace(/[_-]+/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .map((part) => part[0].toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
 export default function DashyPage() {
     const queryClient = useQueryClient();
     const { currentTeam } = useTeam();
@@ -95,11 +115,49 @@ export default function DashyPage() {
         retry: false,
     });
 
-    const objects = objectsQuery.data || [];
+    const objects = useMemo(() => (
+        Array.isArray(objectsQuery.data)
+            ? objectsQuery.data.filter((objectItem) => !!String(objectItem?.url || '').trim())
+            : []
+    ), [objectsQuery.data]);
+    const selectedTypeReadOnly = Boolean(selectedType?.readOnly);
+    const derivedFieldsFromObjects = useMemo(() => {
+        const typeByFieldKey = new Map();
+        const fieldOrder = [];
+        for (const objectItem of objects) {
+            const values = objectItem?.values;
+            if (!values || typeof values !== 'object') continue;
+
+            for (const key of Object.keys(values)) {
+                const safeKey = String(key || '').trim();
+                if (!safeKey) continue;
+                if (!typeByFieldKey.has(safeKey)) {
+                    fieldOrder.push(safeKey);
+                    typeByFieldKey.set(safeKey, inferFieldType(values[safeKey]));
+                    continue;
+                }
+                if (typeByFieldKey.get(safeKey) !== 'string') {
+                    const nextType = inferFieldType(values[safeKey]);
+                    if (nextType !== typeByFieldKey.get(safeKey)) {
+                        typeByFieldKey.set(safeKey, 'string');
+                    }
+                }
+            }
+        }
+
+        return fieldOrder.map((key, index) => ({
+            key,
+            label: fieldLabelFromKey(key),
+            type: typeByFieldKey.get(key) || 'string',
+            active: true,
+            order: index + 1,
+        }));
+    }, [objects]);
     const selectedTypeActiveFields = useMemo(() => (
         Array.isArray(selectedType?.fields)
             ? selectedType.fields
                 .filter((field) => !!field?.active)
+                .filter((field) => !['name', 'url'].includes(String(field?.key || '').trim().toLowerCase()))
                 .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0))
                 .map((field) => ({
                     key: String(field?.key || ''),
@@ -108,8 +166,14 @@ export default function DashyPage() {
                 .filter((field) => !!field.key)
             : []
     ), [selectedType]);
+    const previewFieldOptions = selectedTypeActiveFields.length > 0
+        ? selectedTypeActiveFields
+        : derivedFieldsFromObjects.map((field) => ({
+            key: String(field?.key || ''),
+            label: String(field?.label || field?.key || ''),
+        }));
     const selectedPreviewFieldKeys = useMemo(() => {
-        const validKeys = new Set(selectedTypeActiveFields.map((field) => field.key));
+        const validKeys = new Set(previewFieldOptions.map((field) => field.key));
         const rawValue = previewFieldByType[selectedTypeKey];
         const rawKeys = Array.isArray(rawValue)
             ? rawValue
@@ -124,13 +188,13 @@ export default function DashyPage() {
                 seen.add(key);
                 return true;
             });
-    }, [previewFieldByType, selectedTypeActiveFields, selectedTypeKey]);
+    }, [previewFieldByType, previewFieldOptions, selectedTypeKey]);
     const selectedPreviewFields = useMemo(() => {
-        const fieldByKey = new Map(selectedTypeActiveFields.map((field) => [field.key, field]));
+        const fieldByKey = new Map(previewFieldOptions.map((field) => [field.key, field]));
         return selectedPreviewFieldKeys
             .map((key) => fieldByKey.get(key))
             .filter(Boolean);
-    }, [selectedPreviewFieldKeys, selectedTypeActiveFields]);
+    }, [selectedPreviewFieldKeys, previewFieldOptions]);
 
     const upsertTypeMutation = useMutation({
         mutationFn: async ({ mode, typeKey, payload }) => {
@@ -198,6 +262,10 @@ export default function DashyPage() {
         const typeLabel = String(type?.displayName || type?.typeKey || '').trim();
         const typeKey = String(type?.typeKey || '').trim();
         if (!typeKey) return;
+        if (type?.readOnly) {
+            showToast('Mongo-backed types are read-only in Dashy.', 'error', 4200);
+            return;
+        }
 
         const confirmed = window.confirm(`Delete type "${typeLabel}" and all its objects?`);
         if (!confirmed) return;
@@ -362,13 +430,15 @@ export default function DashyPage() {
                                             </div>
                                         </div>
                                         <div className="object-hub-type-summary__actions">
-                                            <button
-                                                className="btn btn-primary"
-                                                onClick={() => setObjectModalState({ open: true, mode: 'create', object: null })}
-                                            >
-                                                <HiPlus size={16} />
-                                                Add Object
-                                            </button>
+                                            {!selectedTypeReadOnly && (
+                                                <button
+                                                    className="btn btn-primary"
+                                                    onClick={() => setObjectModalState({ open: true, mode: 'create', object: null })}
+                                                >
+                                                    <HiPlus size={16} />
+                                                    Add Object
+                                                </button>
+                                            )}
                                         </div>
                                     </section>
 
@@ -377,7 +447,9 @@ export default function DashyPage() {
                                         loading={objectsQuery.isFetching}
                                         search={objectSearch}
                                         previewFieldKeys={selectedPreviewFieldKeys}
-                                        previewFieldOptions={selectedTypeActiveFields}
+                                        previewFieldOptions={previewFieldOptions}
+                                        colorTheme={selectedType?.colorTheme || null}
+                                        themeSeed={selectedType?.collectionName || selectedType?.displayName || selectedTypeKey}
                                         onSearchChange={setObjectSearch}
                                         onPreviewFieldChange={(fieldKeys) => {
                                             setPreviewFieldByType((prev) => ({
@@ -391,8 +463,8 @@ export default function DashyPage() {
                                         exportDisabled={selectedPreviewFields.length <= 0 || objects.length <= 0}
                                         onOpenObject={openObject}
                                         onViewObject={(objectItem) => setDetailsObject(objectItem)}
-                                        onEditObject={(objectItem) => openObjectEditor(objectItem)}
-                                        onDeleteObject={handleDeleteObject}
+                                        onEditObject={selectedTypeReadOnly ? undefined : (objectItem) => openObjectEditor(objectItem)}
+                                        onDeleteObject={selectedTypeReadOnly ? undefined : handleDeleteObject}
                                     />
                                 </>
                             )}
@@ -412,7 +484,7 @@ export default function DashyPage() {
                 />
             )}
 
-            {objectModalState.open && selectedType && (
+            {objectModalState.open && selectedType && !selectedTypeReadOnly && (
                 <ObjectFormModal
                     key={`${objectModalState.mode}:${selectedType.typeKey}:${objectModalState.object?.id || 'new'}`}
                     mode={objectModalState.mode}
@@ -429,8 +501,8 @@ export default function DashyPage() {
                     typeDef={selectedType}
                     objectData={detailsObject}
                     onClose={() => setDetailsObject(null)}
-                    onEdit={(objectItem) => openObjectEditor(objectItem, { closeDetails: true })}
-                    onDelete={handleDeleteObject}
+                    onEdit={selectedTypeReadOnly ? undefined : (objectItem) => openObjectEditor(objectItem, { closeDetails: true })}
+                    onDelete={selectedTypeReadOnly ? undefined : handleDeleteObject}
                 />
             )}
 

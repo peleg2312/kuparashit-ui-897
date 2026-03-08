@@ -142,6 +142,20 @@ def validate_value_by_type(value: Any, field_type: str, field_key: str) -> None:
     raise HTTPException(status_code=400, detail=f"Unsupported field type for '{field_key}': {field_type}")
 
 
+def validate_required_value(value: Any, field_type: str, field_key: str) -> None:
+    if value is None:
+        raise HTTPException(status_code=400, detail=f"Field '{field_key}' is required.")
+
+    if field_type in {"string", "url"} and not str(value).strip():
+        raise HTTPException(status_code=400, detail=f"Field '{field_key}' is required.")
+
+    if field_type == "array" and isinstance(value, list) and len(value) <= 0:
+        raise HTTPException(status_code=400, detail=f"Field '{field_key}' is required.")
+
+    if field_type == "dict" and isinstance(value, dict) and len(value) <= 0:
+        raise HTTPException(status_code=400, detail=f"Field '{field_key}' is required.")
+
+
 def normalize_fields(fields: list[Any], *, allowed_field_types: set[str]) -> list[dict[str, Any]]:
     normalized_fields: list[dict[str, Any]] = []
     seen_keys: set[str] = set()
@@ -154,6 +168,10 @@ def normalize_fields(fields: list[Any], *, allowed_field_types: set[str]) -> lis
             raise HTTPException(status_code=400, detail=f"Duplicate field key: {key}")
 
         field_type = str(getattr(field, "type", "") or "").strip().lower()
+        if key == "url":
+            field_type = "url"
+        elif key == "name" and not field_type:
+            field_type = "string"
         if field_type not in allowed_field_types:
             raise HTTPException(status_code=400, detail=f"Unsupported field type for '{key}': {field_type}")
 
@@ -190,19 +208,37 @@ def normalize_object_values(values: dict[str, Any] | None, *, type_doc: dict[str
         raise HTTPException(status_code=400, detail="values must be an object.")
 
     normalized_values: dict[str, Any] = {}
-    active_fields_by_key = {str(field.get("key")): field for field in active_fields(type_doc)}
-    unknown_keys = [key for key in raw_values.keys() if key not in active_fields_by_key]
+    active_fields_by_key = {
+        str(field.get("key") or "").strip(): field
+        for field in active_fields(type_doc)
+        if str(field.get("key") or "").strip() and str(field.get("key") or "").strip() not in {"name", "url"}
+    }
+
+    unknown_keys = sorted(key for key in raw_values.keys() if str(key or "").strip() not in active_fields_by_key)
     if unknown_keys:
         raise HTTPException(
             status_code=400,
-            detail=f"values contains unknown field(s): {', '.join(sorted(map(str, unknown_keys)))}",
+            detail=f"values contains unknown field(s): {', '.join(map(str, unknown_keys))}",
         )
 
-    for key, field in active_fields_by_key.items():
+    for raw_key, value in raw_values.items():
+        key = str(raw_key or "").strip()
+        if not key:
+            raise HTTPException(status_code=400, detail="values cannot contain empty field names.")
+
+        field = active_fields_by_key.get(key)
+        if not field:
+            continue
         field_type = str(field.get("type") or "").strip().lower()
-        value = raw_values.get(key)
         validate_value_by_type(value, field_type, key)
-        normalized_values[key] = value if key in raw_values else None
+        validate_required_value(value, field_type, key)
+        normalized_values[key] = value
+
+    for key, field in active_fields_by_key.items():
+        if key in normalized_values:
+            continue
+        field_type = str(field.get("type") or "").strip().lower()
+        validate_required_value(None, field_type, key)
 
     return normalized_values
 

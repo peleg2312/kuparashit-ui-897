@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from pymongo import ASCENDING, DESCENDING, MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-from pymongo.errors import OperationFailure, PyMongoError, ServerSelectionTimeoutError
+from pymongo.errors import DuplicateKeyError, OperationFailure, PyMongoError, ServerSelectionTimeoutError
 
 from .constants import (
     TYPE_DEFINITIONS_COLLECTION,
@@ -39,7 +39,7 @@ class CatalogRepository:
 
     def objects_collection(self, db: Database, collection_name: str) -> Collection:
         collection = db[collection_name]
-        self._ensure_unique_index(collection, [("nameKey", ASCENDING)])
+        self._drop_index_if_present(collection, [("nameKey", ASCENDING)])
         return collection
 
     def object_collection_name(self, team: str, type_key: str) -> str:
@@ -135,22 +135,12 @@ class CatalogRepository:
 
         source = db[source_name]
         target = db[target_name]
-        self._ensure_unique_index(target, [("nameKey", ASCENDING)])
 
         for doc in source.find({}):
             payload = dict(doc)
             payload.pop("_id", None)
-
-            name_key = str(payload.get("nameKey") or "").strip()
-            if not name_key:
-                fallback_name = str(payload.get("name") or "").strip()
-                if not fallback_name:
-                    continue
-                name_key = slugify(fallback_name, field_name="name")
-                payload["nameKey"] = name_key
-
             target.update_one(
-                {"nameKey": name_key},
+                {"name": str(payload.get("name") or "").strip(), "url": str(payload.get("url") or "").strip()},
                 {"$setOnInsert": payload},
                 upsert=True,
             )
@@ -161,8 +151,8 @@ class CatalogRepository:
     def backfill_new_fields(objects_collection: Collection, field_keys: list[str]) -> None:
         for key in field_keys:
             objects_collection.update_many(
-                {f"values.{key}": {"$exists": False}},
-                {"$set": {f"values.{key}": None}},
+                {key: {"$exists": False}},
+                {"$set": {key: None}},
             )
 
     @staticmethod
@@ -194,7 +184,26 @@ class CatalogRepository:
             collection.drop_index(index_name)
             break
 
-        collection.create_index(keys, unique=True)
+        try:
+            collection.create_index(keys, unique=True)
+        except DuplicateKeyError as error:
+            key_names = ", ".join(str(key) for key, _direction in keys)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Duplicate values exist for unique field(s) [{key_names}] "
+                    f"in collection '{collection.name}'. Remove duplicates and retry."
+                ),
+            ) from error
+
+    @staticmethod
+    def _drop_index_if_present(collection: Collection, keys: list[tuple[str, int]]) -> None:
+        indexes = collection.index_information()
+        for index_name, spec in indexes.items():
+            if spec.get("key", []) != keys:
+                continue
+            collection.drop_index(index_name)
+            return
 
     def _mongo_client_or_503(self) -> MongoClient:
         if self._mongo_client is not None:

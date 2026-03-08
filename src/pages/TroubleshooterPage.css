@@ -341,59 +341,92 @@
 
 .ts-datetime-picker {
     position: relative;
-    min-height: 46px;
+}
+
+.ts-datetime-picker__trigger {
+    width: 100%;
+    min-height: 48px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: var(--bg-input);
-    padding: 8px 12px;
+    background:
+        linear-gradient(
+            150deg,
+            color-mix(in srgb, var(--bg-input), var(--bg-card) 16%) 0%,
+            color-mix(in srgb, var(--bg-input), #000 3%) 100%
+        );
+    padding: 6px 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
     cursor: pointer;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
-.ts-datetime-picker:hover {
-    border-color: var(--border-hover);
+.ts-datetime-picker__trigger:hover {
+    border-color: color-mix(in srgb, var(--ts-accent), var(--border-hover) 62%);
 }
 
-.ts-datetime-picker:focus-within {
+.ts-datetime-picker__trigger.is-open {
     border-color: var(--ts-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent), transparent 84%);
-    background: color-mix(in srgb, var(--bg-input), var(--bg-card) 20%);
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--ts-accent), transparent 84%),
+        0 8px 18px color-mix(in srgb, var(--ts-accent), transparent 88%);
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 32%);
+}
+
+.ts-datetime-picker__leading {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 38%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 86%);
+    border: 1px solid color-mix(in srgb, var(--ts-accent), transparent 72%);
+    flex-shrink: 0;
 }
 
 .ts-datetime-picker__value {
     min-width: 0;
+    flex: 1 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text-primary);
     font-size: 0.92rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .ts-datetime-picker__value.is-placeholder {
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
 }
 
-.ts-datetime-picker__icon {
-    display: inline-flex;
-    align-items: center;
-    color: var(--text-secondary);
+.ts-datetime-picker__tz {
     flex-shrink: 0;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), transparent 72%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 90%);
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 45%);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 22px;
+    letter-spacing: 0.06em;
 }
 
-.ts-datetime-picker__menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    z-index: 40;
-    width: min(390px, calc(100vw - 48px));
-    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 62%);
+.ts-datetime-menu {
+    position: fixed;
+    z-index: 990;
+    top: auto;
+    left: auto;
+    max-height: var(--ts-datetime-menu-max-height, 470px);
+    overflow: auto;
     border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 62%);
     background:
         linear-gradient(
             180deg,
@@ -401,21 +434,177 @@
             color-mix(in srgb, var(--bg-secondary), #000 2%)
         );
     box-shadow: var(--shadow-md);
-    padding: 10px;
+    backdrop-filter: blur(8px);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
 }
 
-.ts-datetime-picker__menu--portal {
-    position: fixed;
-    z-index: 990;
-    top: auto;
-    left: auto;
-    width: auto;
-    max-height: var(--ts-datetime-menu-max-height, 420px);
-    overflow: auto;
+.ts-datetime-menu__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.ts-rn-datetime-picker {
-    width: 100%;
+.ts-datetime-menu__month-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.ts-datetime-menu__month-label {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    min-width: 156px;
+    text-align: center;
+}
+
+.ts-datetime-menu__icon-btn,
+.ts-datetime-menu__close {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 64%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 90%);
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 42%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.ts-datetime-menu__icon-btn:hover,
+.ts-datetime-menu__close:hover {
+    background: color-mix(in srgb, var(--ts-accent), transparent 84%);
+    border-color: color-mix(in srgb, var(--ts-accent), transparent 48%);
+    color: var(--text-primary);
+}
+
+.ts-datetime-menu__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.ts-datetime-menu__weekdays span {
+    text-align: center;
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.ts-datetime-menu__days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.ts-datetime-menu__day {
+    min-height: 34px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--bg-input), transparent 40%);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    font-weight: 700;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.ts-datetime-menu__day:hover {
+    border-color: color-mix(in srgb, var(--ts-accent), transparent 56%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 88%);
+    transform: translateY(-1px);
+}
+
+.ts-datetime-menu__day.is-outside {
+    color: var(--text-muted);
+    opacity: 0.62;
+}
+
+.ts-datetime-menu__day.is-today {
+    border-color: color-mix(in srgb, var(--ts-accent), transparent 36%);
+}
+
+.ts-datetime-menu__day.is-selected {
+    border-color: var(--ts-accent);
+    background: color-mix(in srgb, var(--ts-accent), transparent 76%);
+    color: #fff;
+    box-shadow: 0 8px 16px color-mix(in srgb, var(--ts-accent), transparent 80%);
+}
+
+.ts-datetime-menu__time {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.ts-datetime-menu__stepper {
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 74%);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-card), var(--bg-input) 34%);
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.ts-datetime-menu__step-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.ts-datetime-menu__step-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ts-datetime-menu__step-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--ts-accent), var(--border) 62%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 90%);
+    color: color-mix(in srgb, var(--ts-accent), var(--text-primary) 42%);
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ts-datetime-menu__step-btn:hover {
+    border-color: color-mix(in srgb, var(--ts-accent), transparent 40%);
+    background: color-mix(in srgb, var(--ts-accent), transparent 82%);
+}
+
+.ts-datetime-menu__step-value {
+    min-width: 2.2ch;
+    text-align: center;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ts-datetime-menu__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ts-datetime-menu__action-btn {
+    min-height: 34px;
+    padding: 6px 11px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    flex: 1 1 0;
 }
 
 .ts-choice-grid {
@@ -1108,6 +1297,22 @@
 }
 
 @media (max-width: 620px) {
+    .ts-datetime-picker__tz {
+        display: none;
+    }
+
+    .ts-datetime-menu__time {
+        grid-template-columns: 1fr;
+    }
+
+    .ts-datetime-menu__actions {
+        flex-wrap: wrap;
+    }
+
+    .ts-datetime-menu__action-btn {
+        flex: 1 1 calc(50% - 4px);
+    }
+
     .ts-naas-meta {
         grid-template-columns: 1fr;
     }

@@ -1,6 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { HiCheck, HiOutlineLink, HiPencilAlt, HiTrash, HiEye } from 'react-icons/hi';
 
+const COLLECTION_CARD_THEMES = [
+    { accent: '#29a36a', accentAlt: '#168f72' },
+    { accent: '#2f7df4', accentAlt: '#1e5fd8' },
+    { accent: '#0ea5a4', accentAlt: '#0f766e' },
+    { accent: '#d97706', accentAlt: '#ea580c' },
+    { accent: '#d9467a', accentAlt: '#db2777' },
+    { accent: '#84a114', accentAlt: '#4d7c0f' },
+    { accent: '#0891b2', accentAlt: '#2563eb' },
+    { accent: '#c26a2d', accentAlt: '#b45309' },
+    { accent: '#16a34a', accentAlt: '#15803d' },
+    { accent: '#2563eb', accentAlt: '#1d4ed8' },
+    { accent: '#7c3aed', accentAlt: '#6d28d9' },
+    { accent: '#be123c', accentAlt: '#e11d48' },
+    { accent: '#0f766e', accentAlt: '#14b8a6' },
+    { accent: '#475569', accentAlt: '#334155' },
+    { accent: '#ea580c', accentAlt: '#c2410c' },
+    { accent: '#3b82f6', accentAlt: '#06b6d4' },
+];
+
 function matchesSearch(objectItem, search) {
     const term = String(search || '').trim().toLowerCase();
     if (!term) return true;
@@ -10,15 +29,35 @@ function matchesSearch(objectItem, search) {
     return target.includes(term);
 }
 
+function hashThemeSeed(value) {
+    const input = String(value || '').trim().toLowerCase();
+    let hash = 0;
+    for (let index = 0; index < input.length; index += 1) {
+        hash = ((hash << 5) - hash) + input.charCodeAt(index);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function resolveCollectionTheme(seed) {
+    if (COLLECTION_CARD_THEMES.length <= 0) {
+        return { accent: '#2f7df4', accentAlt: '#1e5fd8' };
+    }
+    const hash = hashThemeSeed(seed);
+    return COLLECTION_CARD_THEMES[hash % COLLECTION_CARD_THEMES.length];
+}
+
 export default function ObjectCardGrid({
     objects,
     loading = false,
     search = '',
     previewFieldKeys = [],
     previewFieldOptions = [],
+    colorTheme = null,
+    themeSeed = '',
     onSearchChange,
     onPreviewFieldChange = () => { },
-    onExportList = () => {},
+    onExportList = () => { },
     exportDisabled = false,
     onOpenObject,
     onViewObject,
@@ -26,6 +65,9 @@ export default function ObjectCardGrid({
     onDeleteObject,
 }) {
     const filtered = Array.isArray(objects) ? objects.filter((objectItem) => matchesSearch(objectItem, search)) : [];
+    const canViewObject = typeof onViewObject === 'function';
+    const canEditObject = typeof onEditObject === 'function';
+    const canDeleteObject = typeof onDeleteObject === 'function';
     const pickerRef = useRef(null);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -49,6 +91,21 @@ export default function ObjectCardGrid({
             .map((key) => fieldByKey.get(key))
             .filter(Boolean);
     }, [previewFieldOptions, selectedPreviewFieldKeys]);
+    const collectionTheme = useMemo(
+        () => {
+            const accent = String(colorTheme?.accent || '').trim();
+            const accentAlt = String(colorTheme?.accentAlt || '').trim();
+            if (accent && accentAlt) {
+                return { accent, accentAlt };
+            }
+            return resolveCollectionTheme(themeSeed);
+        },
+        [colorTheme, themeSeed],
+    );
+    const themedPanelStyle = useMemo(() => ({
+        '--object-accent': collectionTheme.accent,
+        '--object-accent-alt': collectionTheme.accentAlt,
+    }), [collectionTheme]);
     const selectedFieldCount = selectedPreviewFields.length;
     const cardMinHeight = 88 + (selectedFieldCount * 18);
     const gridGap = 16 + (selectedFieldCount * 2);
@@ -100,7 +157,7 @@ export default function ObjectCardGrid({
     };
 
     return (
-        <section className="object-hub-grid-panel glass-card">
+        <section className="object-hub-grid-panel object-hub-grid-panel--themed glass-card" style={themedPanelStyle}>
             <div className="object-hub-grid-panel__header">
                 <div>
                     <p className="object-hub-grid-panel__eyebrow">Objects</p>
@@ -199,44 +256,52 @@ export default function ObjectCardGrid({
                 >
                     {filtered.map((objectItem) => (
                         <article key={objectItem.id} className="object-hub-card">
-                            <div className="object-hub-card__hover-actions">
-                                <button
-                                    type="button"
-                                    className="object-hub-card__action-btn"
-                                    title="View"
-                                    aria-label="View object"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onViewObject(objectItem);
-                                    }}
-                                >
-                                    <HiEye size={14} />
-                                </button>
-                                <button
-                                    type="button"
-                                    className="object-hub-card__action-btn"
-                                    title="Edit"
-                                    aria-label="Edit object"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onEditObject?.(objectItem);
-                                    }}
-                                >
-                                    <HiPencilAlt size={14} />
-                                </button>
-                                <button
-                                    type="button"
-                                    className="object-hub-card__action-btn object-hub-card__action-btn--danger"
-                                    title="Delete"
-                                    aria-label="Delete object"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onDeleteObject?.(objectItem);
-                                    }}
-                                >
-                                    <HiTrash size={14} />
-                                </button>
-                            </div>
+                            {(canViewObject || canEditObject || canDeleteObject) && (
+                                <div className="object-hub-card__hover-actions">
+                                    {canViewObject && (
+                                        <button
+                                            type="button"
+                                            className="object-hub-card__action-btn"
+                                            title="View"
+                                            aria-label="View object"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onViewObject(objectItem);
+                                            }}
+                                        >
+                                            <HiEye size={14} />
+                                        </button>
+                                    )}
+                                    {canEditObject && (
+                                        <button
+                                            type="button"
+                                            className="object-hub-card__action-btn"
+                                            title="Edit"
+                                            aria-label="Edit object"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onEditObject?.(objectItem);
+                                            }}
+                                        >
+                                            <HiPencilAlt size={14} />
+                                        </button>
+                                    )}
+                                    {canDeleteObject && (
+                                        <button
+                                            type="button"
+                                            className="object-hub-card__action-btn object-hub-card__action-btn--danger"
+                                            title="Delete"
+                                            aria-label="Delete object"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onDeleteObject?.(objectItem);
+                                            }}
+                                        >
+                                            <HiTrash size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             <button
                                 type="button"
@@ -244,7 +309,9 @@ export default function ObjectCardGrid({
                                 onClick={() => onOpenObject(objectItem)}
                                 onContextMenu={(event) => {
                                     event.preventDefault();
-                                    onViewObject(objectItem);
+                                    if (canViewObject) {
+                                        onViewObject(objectItem);
+                                    }
                                 }}
                             >
                                 <div className="object-hub-card__header">

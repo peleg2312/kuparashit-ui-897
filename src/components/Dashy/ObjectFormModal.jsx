@@ -29,16 +29,17 @@ function inputValueForField(fieldType, value) {
 }
 
 function parseFieldValue(field, rawValue) {
-    const type = String(field?.type || '');
+    const fieldKey = String(field?.key || 'field');
+    const type = String(field?.type || 'string');
 
     if (rawValue == null || rawValue === '') {
-        return null;
+        throw new Error(`Field "${fieldKey}" is required.`);
     }
 
     if (type === 'number') {
         const parsed = Number(rawValue);
         if (!Number.isFinite(parsed)) {
-            throw new Error(`Field "${field.label}" must be a valid number.`);
+            throw new Error(`Field "${fieldKey}" must be a valid number.`);
         }
         return parsed;
     }
@@ -46,26 +47,30 @@ function parseFieldValue(field, rawValue) {
     if (type === 'boolean') {
         if (rawValue === 'true') return true;
         if (rawValue === 'false') return false;
-        throw new Error(`Field "${field.label}" must be true or false.`);
+        throw new Error(`Field "${fieldKey}" must be true or false.`);
     }
 
     if (type === 'array') {
         const parsed = JSON.parse(rawValue);
-        if (!Array.isArray(parsed)) {
-            throw new Error(`Field "${field.label}" must be a JSON array.`);
+        if (!Array.isArray(parsed) || parsed.length <= 0) {
+            throw new Error(`Field "${fieldKey}" must be a non-empty JSON array.`);
         }
         return parsed;
     }
 
     if (type === 'dict') {
         const parsed = JSON.parse(rawValue);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            throw new Error(`Field "${field.label}" must be a JSON object.`);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Object.keys(parsed).length <= 0) {
+            throw new Error(`Field "${fieldKey}" must be a non-empty JSON object.`);
         }
         return parsed;
     }
 
-    return String(rawValue);
+    const safeValue = String(rawValue).trim();
+    if (!safeValue) {
+        throw new Error(`Field "${fieldKey}" is required.`);
+    }
+    return safeValue;
 }
 
 function buildInitialFormState(activeFields, objectData) {
@@ -96,6 +101,12 @@ export default function ObjectFormModal({
 }) {
     const { currentTeam, userTeams } = useTeam();
     const activeFields = useMemo(() => getActiveFields(typeDef), [typeDef]);
+    const hasNameField = activeFields.some((field) => String(field?.key || '').trim().toLowerCase() === 'name');
+    const hasUrlField = activeFields.some((field) => String(field?.key || '').trim().toLowerCase() === 'url');
+    const customFields = activeFields.filter((field) => {
+        const key = String(field?.key || '').trim().toLowerCase();
+        return key !== 'name' && key !== 'url';
+    });
     const visibleTeamOptions = useMemo(
         () => userTeams.map((team) => String(team?.id || '').trim()).filter(Boolean),
         [userTeams],
@@ -112,12 +123,17 @@ export default function ObjectFormModal({
     const [fieldErrors, setFieldErrors] = useState({});
     const [formError, setFormError] = useState('');
 
+    const toggleTeam = (teamId) => {
+        setTeams((prev) => (
+            prev.includes(teamId)
+                ? prev.filter((item) => item !== teamId)
+                : [...prev, teamId]
+        ));
+    };
+
     const submit = async () => {
         const safeName = String(name || '').trim();
-        if (!safeName) {
-            setFormError('Name is required.');
-            return;
-        }
+        const safeUrl = String(url || '').trim();
         if (!Array.isArray(teams) || teams.length <= 0) {
             setFormError('Choose at least one team that can view this object.');
             return;
@@ -126,18 +142,18 @@ export default function ObjectFormModal({
         const nextErrors = {};
         const values = {};
 
-        for (const field of activeFields) {
+        for (const field of customFields) {
             const rawValue = fieldValues[field.key];
             try {
                 values[field.key] = parseFieldValue(field, rawValue);
             } catch (error) {
-                nextErrors[field.key] = error?.message || `Invalid value for ${field.label}`;
+                nextErrors[field.key] = error?.message || `Invalid value for ${field.key}`;
             }
         }
 
         if (Object.keys(nextErrors).length > 0) {
             setFieldErrors(nextErrors);
-            setFormError('Please fix invalid field values.');
+            setFormError('Fill every collection field before saving.');
             return;
         }
 
@@ -145,18 +161,10 @@ export default function ObjectFormModal({
         setFormError('');
         await onSubmit({
             name: safeName,
-            url: String(url || '').trim(),
+            url: safeUrl,
             teams,
             values,
         });
-    };
-
-    const toggleTeam = (teamId) => {
-        setTeams((prev) => (
-            prev.includes(teamId)
-                ? prev.filter((item) => item !== teamId)
-                : [...prev, teamId]
-        ));
     };
 
     return (
@@ -171,27 +179,31 @@ export default function ObjectFormModal({
                 </div>
 
                 <div className="object-hub-modal__body object-hub-modal__body--scroll">
-                    <div className="form-group">
-                        <label className="form-label">Name</label>
-                        <input
-                            type="text"
-                            className="input-field"
-                            placeholder="Object name"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                        />
-                    </div>
+                    {hasNameField && (
+                        <div className="form-group">
+                            <label className="form-label">Name</label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="Object name"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                            />
+                        </div>
+                    )}
 
-                    <div className="form-group">
-                        <label className="form-label">URL (Optional)</label>
-                        <input
-                            type="text"
-                            className="input-field"
-                            placeholder="https://..."
-                            value={url}
-                            onChange={(event) => setUrl(event.target.value)}
-                        />
-                    </div>
+                    {hasUrlField && (
+                        <div className="form-group">
+                            <label className="form-label">URL</label>
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="https://..."
+                                value={url}
+                                onChange={(event) => setUrl(event.target.value)}
+                            />
+                        </div>
+                    )}
 
                     <div className="form-group">
                         <label className="form-label">Visible Teams</label>
@@ -213,7 +225,7 @@ export default function ObjectFormModal({
                     </div>
 
                     <div className="object-hub-field-grid">
-                        {activeFields.map((field) => {
+                        {customFields.map((field) => {
                             const fieldType = String(field?.type || 'string');
                             const fieldKey = String(field?.key || '');
                             const fieldLabel = String(field?.label || fieldKey || 'Field');
@@ -233,7 +245,7 @@ export default function ObjectFormModal({
                                             value={value}
                                             onChange={(event) => setFieldValues((prev) => ({ ...prev, [fieldKey]: event.target.value }))}
                                         >
-                                            <option value="">null</option>
+                                            <option value="">Select...</option>
                                             <option value="true">true</option>
                                             <option value="false">false</option>
                                         </select>

@@ -56,6 +56,7 @@ export default function TypeRail({
                     filteredTypes.map((type) => {
                         const typeKey = String(type?.typeKey || '');
                         const isActive = typeKey && typeKey === selectedTypeKey;
+                        const isReadOnly = Boolean(type?.readOnly);
                         return (
                             <button
                                 key={typeKey}
@@ -70,24 +71,26 @@ export default function TypeRail({
                                     </span>
                                 </div>
 
-                                <div className="object-hub-type-item__actions" onClick={(event) => event.stopPropagation()}>
-                                    <button
-                                        type="button"
-                                        className="btn-icon object-hub-type-item__icon-btn"
-                                        title="Edit type schema"
-                                        onClick={() => onEditType(type)}
-                                    >
-                                        <HiPencilAlt size={14} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-icon object-hub-type-item__icon-btn object-hub-type-item__icon-btn--danger"
-                                        title="Delete type"
-                                        onClick={() => onDeleteType(type)}
-                                    >
-                                        <HiTrash size={14} />
-                                    </button>
-                                </div>
+                                {!isReadOnly && (
+                                    <div className="object-hub-type-item__actions" onClick={(event) => event.stopPropagation()}>
+                                        <button
+                                            type="button"
+                                            className="btn-icon object-hub-type-item__icon-btn"
+                                            title="Edit type schema"
+                                            onClick={() => onEditType(type)}
+                                        >
+                                            <HiPencilAlt size={14} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-icon object-hub-type-item__icon-btn object-hub-type-item__icon-btn--danger"
+                                            title="Delete type"
+                                            onClick={() => onDeleteType(type)}
+                                        >
+                                            <HiTrash size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </button>
                         );
                     })

@@ -3,6 +3,11 @@ import { HiChevronDown, HiOutlineMinusCircle, HiPlus } from 'react-icons/hi';
 import { useTeam } from '../../contexts/TeamContext';
 
 const FIELD_TYPE_OPTIONS = ['string', 'number', 'boolean', 'array', 'dict'];
+const ALLOWED_FIELD_TYPES = [...FIELD_TYPE_OPTIONS, 'url'];
+const DEFAULT_SYSTEM_FIELDS = [
+    { label: 'Name', type: 'string' },
+    { label: 'URL', type: 'url' },
+];
 
 function slugifyKey(value) {
     return String(value || '')
@@ -11,6 +16,13 @@ function slugifyKey(value) {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/-{2,}/g, '-')
         .replace(/^-+|-+$/g, '');
+}
+
+function resolvedFieldType(field) {
+    const safeKey = slugifyKey(field?.label);
+    if (safeKey === 'url') return 'url';
+    if (safeKey === 'name') return 'string';
+    return String(field?.type || 'string').trim().toLowerCase();
 }
 
 function buildInitialState(initialType) {
@@ -27,7 +39,11 @@ function buildInitialState(initialType) {
                 label: String(field?.label || ''),
                 type: String(field?.type || 'string'),
             }))
-        : [];
+        : DEFAULT_SYSTEM_FIELDS.map((field, index) => ({
+            id: `default-${index}`,
+            label: field.label,
+            type: field.type,
+        }));
     return { displayName, teams, fields };
 }
 
@@ -110,7 +126,7 @@ export default function SchemaModal({
         for (const field of fields) {
             const safeLabel = String(field.label || '').trim();
             const safeKey = slugifyKey(safeLabel);
-            const safeType = String(field.type || '').trim().toLowerCase();
+            const safeType = resolvedFieldType(field);
 
             if (!safeLabel) {
                 setError('Each field must have a label.');
@@ -120,7 +136,7 @@ export default function SchemaModal({
                 setError(`Field "${safeLabel}" has an invalid key.`);
                 return;
             }
-            if (!FIELD_TYPE_OPTIONS.includes(safeType)) {
+            if (!ALLOWED_FIELD_TYPES.includes(safeType)) {
                 setError(`Field "${safeLabel}" has an invalid type.`);
                 return;
             }
@@ -189,7 +205,12 @@ export default function SchemaModal({
 
                     <div className="object-hub-schema-editor">
                         <div className="object-hub-schema-editor__header">
-                            <h3>Fields</h3>
+                            <div>
+                                <h3>Collection Fields</h3>
+                                <p className="object-hub-schema-editor__hint">
+                                    `Name` and `URL` are added by default. You can keep them or remove them.
+                                </p>
+                            </div>
                             <button className="btn btn-secondary btn-sm" onClick={addField}>
                                 <HiPlus size={15} />
                                 Add Field
@@ -198,7 +219,7 @@ export default function SchemaModal({
 
                         {fields.length <= 0 ? (
                             <div className="object-hub-schema-editor__empty">
-                                No custom fields yet. Objects will include only name and optional URL.
+                                No collection fields yet. Add the fields objects should have.
                             </div>
                         ) : (
                             <div className="object-hub-schema-editor__rows">
@@ -211,6 +232,11 @@ export default function SchemaModal({
                                             value={field.label}
                                             onChange={(event) => updateField(field.id, 'label', event.target.value)}
                                         />
+                                        {resolvedFieldType(field) === 'url' ? (
+                                            <div className="select-field object-hub-schema-type-select object-hub-schema-type-select-btn is-disabled">
+                                                <span>url</span>
+                                            </div>
+                                        ) : (
                                         <div
                                             className={`object-hub-schema-type-wrap ${openTypeMenuFieldId === field.id ? 'is-open' : ''}`}
                                             ref={openTypeMenuFieldId === field.id ? openTypeMenuRef : null}
@@ -220,7 +246,7 @@ export default function SchemaModal({
                                                 className="select-field object-hub-schema-type-select object-hub-schema-type-select-btn"
                                                 onClick={() => setOpenTypeMenuFieldId((prev) => (prev === field.id ? null : field.id))}
                                             >
-                                                <span>{field.type}</span>
+                                                <span>{resolvedFieldType(field)}</span>
                                                 <HiChevronDown className="object-hub-schema-type-caret" size={16} />
                                             </button>
                                             {openTypeMenuFieldId === field.id ? (
@@ -229,7 +255,7 @@ export default function SchemaModal({
                                                         <button
                                                             key={option}
                                                             type="button"
-                                                            className={`object-hub-schema-type-menu__item ${field.type === option ? 'is-selected' : ''}`}
+                                                            className={`object-hub-schema-type-menu__item ${resolvedFieldType(field) === option ? 'is-selected' : ''}`}
                                                             onClick={() => {
                                                                 updateField(field.id, 'type', option);
                                                                 setOpenTypeMenuFieldId(null);
@@ -241,6 +267,7 @@ export default function SchemaModal({
                                                 </div>
                                             ) : null}
                                         </div>
+                                        )}
                                         <button
                                             type="button"
                                             className="btn-icon object-hub-schema-row__remove"

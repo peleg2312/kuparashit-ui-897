@@ -4,7 +4,7 @@ services:
       context: ./backend
     environment:
       - TROUBLESHOOTER_DELAY_MS=${TROUBLESHOOTER_DELAY_MS:-4500}
-      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017}
+      - MONGO_URI=${API_MONGO_URI:-mongodb://mongo:27017}
       - MONGO_DB_NAME=${MONGO_DB_NAME:-kupa_rashit}
     ports:
       - "8000:8000"
@@ -13,7 +13,7 @@ services:
   mongo:
     image: mongo:7
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
