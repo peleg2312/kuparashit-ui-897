@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { HiPencilAlt, HiPlus, HiTrash } from 'react-icons/hi';
 
 function toSearchValue(type) {
@@ -6,21 +7,24 @@ function toSearchValue(type) {
     return `${displayName} ${typeKey}`;
 }
 
-export default function TypeRail({
+function TypeRail({
     types,
     selectedTypeKey,
     loading = false,
     search = '',
+    filterSearch = search,
     onSearchChange,
     onSelectType,
     onCreateType,
     onEditType,
     onDeleteType,
 }) {
-    const term = String(search || '').trim().toLowerCase();
-    const filteredTypes = !term
-        ? types
-        : types.filter((type) => toSearchValue(type).includes(term));
+    const term = String(filterSearch || '').trim().toLowerCase();
+    const filteredTypes = useMemo(() => (
+        !term
+            ? types
+            : types.filter((type) => toSearchValue(type).includes(term))
+    ), [term, types]);
 
     return (
         <aside className="object-hub-type-rail glass-card">
@@ -99,4 +103,14 @@ export default function TypeRail({
         </aside>
     );
 }
+
+function areEqual(prevProps, nextProps) {
+    return prevProps.types === nextProps.types
+        && prevProps.selectedTypeKey === nextProps.selectedTypeKey
+        && prevProps.loading === nextProps.loading
+        && prevProps.search === nextProps.search
+        && prevProps.filterSearch === nextProps.filterSearch;
+}
+
+export default memo(TypeRail, areEqual);
 

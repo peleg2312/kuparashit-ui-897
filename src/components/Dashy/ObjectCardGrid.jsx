@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { HiCheck, HiOutlineLink, HiPencilAlt, HiTrash, HiEye } from 'react-icons/hi';
 
 const COLLECTION_CARD_THEMES = [
@@ -24,7 +24,17 @@ function matchesSearch(objectItem, search) {
     const term = String(search || '').trim().toLowerCase();
     if (!term) return true;
 
-    const serializedValues = JSON.stringify(objectItem?.values || {}).toLowerCase();
+    const indexedValue = String(objectItem?.__searchText || '').trim().toLowerCase();
+    if (indexedValue) {
+        return indexedValue.includes(term);
+    }
+
+    let serializedValues = '';
+    try {
+        serializedValues = JSON.stringify(objectItem?.values || {}).toLowerCase();
+    } catch {
+        serializedValues = String(objectItem?.values || '').toLowerCase();
+    }
     const target = `${String(objectItem?.name || '').toLowerCase()} ${String(objectItem?.url || '').toLowerCase()} ${serializedValues}`;
     return target.includes(term);
 }
@@ -47,10 +57,140 @@ function resolveCollectionTheme(seed) {
     return COLLECTION_CARD_THEMES[hash % COLLECTION_CARD_THEMES.length];
 }
 
-export default function ObjectCardGrid({
+function formatPreviewValue(value) {
+    if (value == null || value === '') return 'null';
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
+        }
+    }
+    return String(value);
+}
+
+const CardList = memo(function CardList({
+    filtered,
+    selectedPreviewFields,
+    canViewObject,
+    canEditObject,
+    canDeleteObject,
+    onOpenObject,
+    onViewObject,
+    onEditObject,
+    onDeleteObject,
+    cardMinHeight,
+    gridGap,
+}) {
+    return (
+        <div
+            className="object-hub-card-grid"
+            style={{
+                '--object-card-min-height': `${cardMinHeight}px`,
+                '--object-grid-gap': `${gridGap}px`,
+            }}
+        >
+            {filtered.map((objectItem) => (
+                <article key={objectItem.id} className="object-hub-card">
+                    {(canViewObject || canEditObject || canDeleteObject) && (
+                        <div className="object-hub-card__hover-actions">
+                            {canViewObject && (
+                                <button
+                                    type="button"
+                                    className="object-hub-card__action-btn"
+                                    title="View"
+                                    aria-label="View object"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onViewObject(objectItem);
+                                    }}
+                                >
+                                    <HiEye size={14} />
+                                </button>
+                            )}
+                            {canEditObject && (
+                                <button
+                                    type="button"
+                                    className="object-hub-card__action-btn"
+                                    title="Edit"
+                                    aria-label="Edit object"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onEditObject?.(objectItem);
+                                    }}
+                                >
+                                    <HiPencilAlt size={14} />
+                                </button>
+                            )}
+                            {canDeleteObject && (
+                                <button
+                                    type="button"
+                                    className="object-hub-card__action-btn object-hub-card__action-btn--danger"
+                                    title="Delete"
+                                    aria-label="Delete object"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onDeleteObject?.(objectItem);
+                                    }}
+                                >
+                                    <HiTrash size={14} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    <button
+                        type="button"
+                        className="object-hub-card__main-hit"
+                        onClick={() => onOpenObject(objectItem)}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
+                            if (canViewObject) {
+                                onViewObject(objectItem);
+                            }
+                        }}
+                    >
+                        <div className="object-hub-card__header">
+                            <h4 className="object-hub-card__title">{objectItem.name}</h4>
+                        </div>
+
+                        <div className="object-hub-card__url">
+                            <HiOutlineLink size={14} />
+                            {objectItem.url ? objectItem.url : 'No URL'}
+                        </div>
+
+                        {selectedPreviewFields.length > 0 ? (
+                            <div className="object-hub-card__preview-lines">
+                                {selectedPreviewFields.map((field) => (
+                                    <div key={field.key} className="object-hub-card__preview-line">
+                                        <span className="object-hub-card__preview-key">{field.label}:</span>
+                                        <span className="object-hub-card__preview-value">
+                                            {formatPreviewValue(objectItem?.values?.[field.key])}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+                    </button>
+                </article>
+            ))}
+        </div>
+    );
+}, (prevProps, nextProps) => (
+    prevProps.filtered === nextProps.filtered
+    && prevProps.selectedPreviewFields === nextProps.selectedPreviewFields
+    && prevProps.canViewObject === nextProps.canViewObject
+    && prevProps.canEditObject === nextProps.canEditObject
+    && prevProps.canDeleteObject === nextProps.canDeleteObject
+    && prevProps.cardMinHeight === nextProps.cardMinHeight
+    && prevProps.gridGap === nextProps.gridGap
+));
+
+function ObjectCardGrid({
     objects,
     loading = false,
     search = '',
+    filterSearch = search,
     previewFieldKeys = [],
     previewFieldOptions = [],
     colorTheme = null,
@@ -64,12 +204,14 @@ export default function ObjectCardGrid({
     onEditObject,
     onDeleteObject,
 }) {
-    const filtered = Array.isArray(objects) ? objects.filter((objectItem) => matchesSearch(objectItem, search)) : [];
     const canViewObject = typeof onViewObject === 'function';
     const canEditObject = typeof onEditObject === 'function';
     const canDeleteObject = typeof onDeleteObject === 'function';
     const pickerRef = useRef(null);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const filtered = useMemo(() => (
+        Array.isArray(objects) ? objects.filter((objectItem) => matchesSearch(objectItem, filterSearch)) : []
+    ), [filterSearch, objects]);
 
     const selectedPreviewFieldKeys = useMemo(() => {
         const availableKeys = new Set((previewFieldOptions || []).map((field) => String(field?.key || '').trim()));
@@ -109,18 +251,6 @@ export default function ObjectCardGrid({
     const selectedFieldCount = selectedPreviewFields.length;
     const cardMinHeight = 88 + (selectedFieldCount * 18);
     const gridGap = 16 + (selectedFieldCount * 2);
-
-    const formatPreviewValue = (value) => {
-        if (value == null || value === '') return 'null';
-        if (typeof value === 'object') {
-            try {
-                return JSON.stringify(value);
-            } catch {
-                return String(value);
-            }
-        }
-        return String(value);
-    };
 
     useEffect(() => {
         if (!isPickerOpen) return undefined;
@@ -247,99 +377,34 @@ export default function ObjectCardGrid({
                     No objects yet. Add your first object to this type.
                 </div>
             ) : (
-                <div
-                    className="object-hub-card-grid"
-                    style={{
-                        '--object-card-min-height': `${cardMinHeight}px`,
-                        '--object-grid-gap': `${gridGap}px`,
-                    }}
-                >
-                    {filtered.map((objectItem) => (
-                        <article key={objectItem.id} className="object-hub-card">
-                            {(canViewObject || canEditObject || canDeleteObject) && (
-                                <div className="object-hub-card__hover-actions">
-                                    {canViewObject && (
-                                        <button
-                                            type="button"
-                                            className="object-hub-card__action-btn"
-                                            title="View"
-                                            aria-label="View object"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onViewObject(objectItem);
-                                            }}
-                                        >
-                                            <HiEye size={14} />
-                                        </button>
-                                    )}
-                                    {canEditObject && (
-                                        <button
-                                            type="button"
-                                            className="object-hub-card__action-btn"
-                                            title="Edit"
-                                            aria-label="Edit object"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onEditObject?.(objectItem);
-                                            }}
-                                        >
-                                            <HiPencilAlt size={14} />
-                                        </button>
-                                    )}
-                                    {canDeleteObject && (
-                                        <button
-                                            type="button"
-                                            className="object-hub-card__action-btn object-hub-card__action-btn--danger"
-                                            title="Delete"
-                                            aria-label="Delete object"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                onDeleteObject?.(objectItem);
-                                            }}
-                                        >
-                                            <HiTrash size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            <button
-                                type="button"
-                                className="object-hub-card__main-hit"
-                                onClick={() => onOpenObject(objectItem)}
-                                onContextMenu={(event) => {
-                                    event.preventDefault();
-                                    if (canViewObject) {
-                                        onViewObject(objectItem);
-                                    }
-                                }}
-                            >
-                                <div className="object-hub-card__header">
-                                    <h4 className="object-hub-card__title">{objectItem.name}</h4>
-                                </div>
-
-                                <div className="object-hub-card__url">
-                                    <HiOutlineLink size={14} />
-                                    {objectItem.url ? objectItem.url : 'No URL'}
-                                </div>
-
-                                {selectedPreviewFields.length > 0 ? (
-                                    <div className="object-hub-card__preview-lines">
-                                        {selectedPreviewFields.map((field) => (
-                                            <div key={field.key} className="object-hub-card__preview-line">
-                                                <span className="object-hub-card__preview-key">{field.label}:</span>
-                                                <span className="object-hub-card__preview-value">
-                                                    {formatPreviewValue(objectItem?.values?.[field.key])}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : null}
-                            </button>
-                        </article>
-                    ))}
-                </div>
+                <CardList
+                    filtered={filtered}
+                    selectedPreviewFields={selectedPreviewFields}
+                    canViewObject={canViewObject}
+                    canEditObject={canEditObject}
+                    canDeleteObject={canDeleteObject}
+                    onOpenObject={onOpenObject}
+                    onViewObject={onViewObject}
+                    onEditObject={onEditObject}
+                    onDeleteObject={onDeleteObject}
+                    cardMinHeight={cardMinHeight}
+                    gridGap={gridGap}
+                />
             )}
         </section>
     );
 }
+
+function areEqual(prevProps, nextProps) {
+    return prevProps.objects === nextProps.objects
+        && prevProps.loading === nextProps.loading
+        && prevProps.search === nextProps.search
+        && prevProps.filterSearch === nextProps.filterSearch
+        && prevProps.previewFieldKeys === nextProps.previewFieldKeys
+        && prevProps.previewFieldOptions === nextProps.previewFieldOptions
+        && prevProps.colorTheme === nextProps.colorTheme
+        && prevProps.themeSeed === nextProps.themeSeed
+        && prevProps.exportDisabled === nextProps.exportDisabled;
+}
+
+export default memo(ObjectCardGrid, areEqual);

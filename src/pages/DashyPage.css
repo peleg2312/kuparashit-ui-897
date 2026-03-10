@@ -451,6 +451,9 @@
     overflow: hidden;
     text-align: left;
     box-shadow: 0 12px 22px color-mix(in srgb, #000, transparent 90%);
+    contain: layout paint style;
+    content-visibility: auto;
+    contain-intrinsic-size: 270px 132px;
     transition:
         transform var(--transition-fast),
         box-shadow var(--transition-fast),

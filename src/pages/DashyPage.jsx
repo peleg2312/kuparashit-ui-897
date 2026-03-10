@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HiCollection, HiPlus } from 'react-icons/hi';
 import { objectCatalogApi } from '../api';
@@ -30,6 +30,24 @@ function csvCell(value) {
         : (typeof value === 'object' ? JSON.stringify(value) : String(value));
     const escaped = stringified.replace(/"/g, '""');
     return `"${escaped}"`;
+}
+
+function stringifySearchValue(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+function buildObjectSearchText(objectItem) {
+    const name = String(objectItem?.name || '');
+    const url = String(objectItem?.url || '');
+    const values = stringifySearchValue(objectItem?.values || {});
+    return `${name} ${url} ${values}`.toLowerCase();
 }
 
 function inferFieldType(value) {
@@ -67,6 +85,8 @@ export default function DashyPage() {
     const [schemaModalState, setSchemaModalState] = useState({ open: false, mode: 'create', type: null });
     const [objectModalState, setObjectModalState] = useState({ open: false, mode: 'create', object: null });
     const [detailsObject, setDetailsObject] = useState(null);
+    const deferredTypeSearch = useDeferredValue(typeSearch);
+    const deferredObjectSearch = useDeferredValue(objectSearch);
 
     const typesQuery = useQuery({
         queryKey: ['catalog-types', teamId],
@@ -117,7 +137,12 @@ export default function DashyPage() {
 
     const objects = useMemo(() => (
         Array.isArray(objectsQuery.data)
-            ? objectsQuery.data.filter((objectItem) => !!String(objectItem?.url || '').trim())
+            ? objectsQuery.data
+                .filter((objectItem) => !!String(objectItem?.url || '').trim())
+                .map((objectItem) => ({
+                    ...objectItem,
+                    __searchText: buildObjectSearchText(objectItem),
+                }))
             : []
     ), [objectsQuery.data]);
     const selectedTypeReadOnly = Boolean(selectedType?.readOnly);
@@ -158,6 +183,7 @@ export default function DashyPage() {
             ? selectedType.fields
                 .filter((field) => !!field?.active)
                 .filter((field) => !['name', 'url'].includes(String(field?.key || '').trim().toLowerCase()))
+                .slice()
                 .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0))
                 .map((field) => ({
                     key: String(field?.key || ''),
@@ -166,12 +192,14 @@ export default function DashyPage() {
                 .filter((field) => !!field.key)
             : []
     ), [selectedType]);
-    const previewFieldOptions = selectedTypeActiveFields.length > 0
-        ? selectedTypeActiveFields
-        : derivedFieldsFromObjects.map((field) => ({
-            key: String(field?.key || ''),
-            label: String(field?.label || field?.key || ''),
-        }));
+    const previewFieldOptions = useMemo(() => (
+        selectedTypeActiveFields.length > 0
+            ? selectedTypeActiveFields
+            : derivedFieldsFromObjects.map((field) => ({
+                key: String(field?.key || ''),
+                label: String(field?.label || field?.key || ''),
+            }))
+    ), [derivedFieldsFromObjects, selectedTypeActiveFields]);
     const selectedPreviewFieldKeys = useMemo(() => {
         const validKeys = new Set(previewFieldOptions.map((field) => field.key));
         const rawValue = previewFieldByType[selectedTypeKey];
@@ -395,6 +423,7 @@ export default function DashyPage() {
                             selectedTypeKey={selectedTypeKey}
                             loading={typesQuery.isFetching}
                             search={typeSearch}
+                            filterSearch={deferredTypeSearch}
                             onSearchChange={setTypeSearch}
                             onSelectType={(type) => {
                                 setPreferredTypeKey(String(type?.typeKey || ''));
@@ -446,6 +475,7 @@ export default function DashyPage() {
                                         objects={objects}
                                         loading={objectsQuery.isFetching}
                                         search={objectSearch}
+                                        filterSearch={deferredObjectSearch}
                                         previewFieldKeys={selectedPreviewFieldKeys}
                                         previewFieldOptions={previewFieldOptions}
                                         colorTheme={selectedType?.colorTheme || null}

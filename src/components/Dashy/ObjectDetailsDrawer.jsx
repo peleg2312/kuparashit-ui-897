@@ -57,6 +57,7 @@ export default function ObjectDetailsDrawer({
         ? typeDef.fields
             .filter((field) => !!field?.active)
             .filter((field) => !['name', 'url'].includes(String(field?.key || '').trim().toLowerCase()))
+            .slice()
             .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0))
         : [];
     const activeFields = activeFieldsFromSchema.length > 0
