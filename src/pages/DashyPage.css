@@ -1012,6 +1012,42 @@
     overflow-wrap: anywhere;
 }
 
+.object-hub-complex-value {
+    display: grid;
+    gap: 8px;
+}
+
+.object-hub-complex-value__summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.object-hub-complex-value__label {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.object-hub-complex-value__toggle {
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 56%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-subtle), var(--bg-card) 34%);
+    color: var(--accent);
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.object-hub-complex-value__toggle:hover {
+    border-color: color-mix(in srgb, var(--accent), transparent 28%);
+}
+
 .object-hub-nested-list {
     display: grid;
     gap: 6px;

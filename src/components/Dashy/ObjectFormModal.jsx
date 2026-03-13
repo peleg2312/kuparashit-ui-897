@@ -5,6 +5,7 @@ function getActiveFields(typeDef) {
     if (!Array.isArray(typeDef?.fields)) return [];
     return typeDef.fields
         .filter((field) => !!field?.active)
+        .slice()
         .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0));
 }
 
@@ -111,7 +112,10 @@ export default function ObjectFormModal({
         () => userTeams.map((team) => String(team?.id || '').trim()).filter(Boolean),
         [userTeams],
     );
-    const initial = buildInitialFormState(activeFields, objectData);
+    const initial = useMemo(
+        () => buildInitialFormState(activeFields, objectData),
+        [activeFields, objectData],
+    );
     const [name, setName] = useState(() => initial.name);
     const [url, setUrl] = useState(() => initial.url);
     const [teams, setTeams] = useState(() => {

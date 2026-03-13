@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { startTransition, useDeferredValue, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HiCollection, HiPlus } from 'react-icons/hi';
 import { objectCatalogApi } from '../api';
@@ -358,14 +358,18 @@ export default function DashyPage() {
             window.open(targetUrl, '_blank', 'noopener,noreferrer');
             return;
         }
-        setDetailsObject(objectItem);
+        startTransition(() => {
+            setDetailsObject(objectItem);
+        });
     };
 
     const openObjectEditor = (objectItem, options = {}) => {
         if (options.closeDetails) {
             setDetailsObject(null);
         }
-        setObjectModalState({ open: true, mode: 'edit', object: objectItem });
+        startTransition(() => {
+            setObjectModalState({ open: true, mode: 'edit', object: objectItem });
+        });
     };
 
     const handleExportList = () => {
@@ -492,7 +496,11 @@ export default function DashyPage() {
                                         onExportList={handleExportList}
                                         exportDisabled={selectedPreviewFields.length <= 0 || objects.length <= 0}
                                         onOpenObject={openObject}
-                                        onViewObject={(objectItem) => setDetailsObject(objectItem)}
+                                        onViewObject={(objectItem) => {
+                                            startTransition(() => {
+                                                setDetailsObject(objectItem);
+                                            });
+                                        }}
                                         onEditObject={selectedTypeReadOnly ? undefined : (objectItem) => openObjectEditor(objectItem)}
                                         onDeleteObject={selectedTypeReadOnly ? undefined : handleDeleteObject}
                                     />

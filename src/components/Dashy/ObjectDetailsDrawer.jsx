@@ -1,3 +1,5 @@
+import { memo, useMemo, useState } from 'react';
+
 function labelFromKey(value) {
     const raw = String(value || '').trim();
     if (!raw) return 'Field';
@@ -9,7 +11,7 @@ function labelFromKey(value) {
         .join(' ');
 }
 
-function renderNestedValue(value, depth = 0) {
+function renderNestedTree(value, depth = 0) {
     if (value == null || value === '') return <span className="object-hub-empty-value">null</span>;
 
     if (Array.isArray(value)) {
@@ -19,7 +21,7 @@ function renderNestedValue(value, depth = 0) {
                 {value.map((item, index) => (
                     <div key={`arr-${depth}-${index}`} className="object-hub-nested-item">
                         <span className="object-hub-nested-key">[{index}]</span>
-                        <div className="object-hub-nested-value">{renderNestedValue(item, depth + 1)}</div>
+                        <div className="object-hub-nested-value">{renderNestedTree(item, depth + 1)}</div>
                     </div>
                 ))}
             </div>
@@ -34,7 +36,7 @@ function renderNestedValue(value, depth = 0) {
                 {entries.map(([key, item]) => (
                     <div key={`obj-${depth}-${key}`} className="object-hub-nested-item">
                         <span className="object-hub-nested-key">{key}</span>
-                        <div className="object-hub-nested-value">{renderNestedValue(item, depth + 1)}</div>
+                        <div className="object-hub-nested-value">{renderNestedTree(item, depth + 1)}</div>
                     </div>
                 ))}
             </div>
@@ -43,6 +45,53 @@ function renderNestedValue(value, depth = 0) {
 
     return <span>{String(value)}</span>;
 }
+
+function summarizeValue(value) {
+    if (value == null || value === '') return 'null';
+    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+    if (typeof value === 'object') {
+        const count = Object.keys(value).length;
+        return `${count} field${count === 1 ? '' : 's'}`;
+    }
+    return String(value);
+}
+
+const ExpandableValue = memo(function ExpandableValue({ value }) {
+    const [expanded, setExpanded] = useState(false);
+
+    if (value == null || value === '') {
+        return <span className="object-hub-empty-value">null</span>;
+    }
+
+    if (typeof value !== 'object') {
+        return <span>{String(value)}</span>;
+    }
+
+    const isArray = Array.isArray(value);
+    const itemCount = isArray ? value.length : Object.keys(value).length;
+    if (itemCount <= 0) {
+        return <span className="object-hub-empty-value">{isArray ? '[]' : '{}'}</span>;
+    }
+
+    return (
+        <div className="object-hub-complex-value">
+            <div className="object-hub-complex-value__summary">
+                <span className="object-hub-complex-value__label">
+                    {isArray ? 'Array' : 'Object'} • {summarizeValue(value)}
+                </span>
+                <button
+                    type="button"
+                    className="object-hub-complex-value__toggle"
+                    onClick={() => setExpanded((current) => !current)}
+                >
+                    {expanded ? 'Hide' : 'Show'}
+                </button>
+            </div>
+
+            {expanded ? renderNestedTree(value) : null}
+        </div>
+    );
+});
 
 export default function ObjectDetailsDrawer({
     typeDef,
@@ -53,16 +102,20 @@ export default function ObjectDetailsDrawer({
 }) {
     if (!objectData) return null;
 
-    const activeFieldsFromSchema = Array.isArray(typeDef?.fields)
-        ? typeDef.fields
-            .filter((field) => !!field?.active)
-            .filter((field) => !['name', 'url'].includes(String(field?.key || '').trim().toLowerCase()))
-            .slice()
-            .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0))
-        : [];
-    const activeFields = activeFieldsFromSchema.length > 0
-        ? activeFieldsFromSchema
-        : Object.keys(objectData?.values && typeof objectData.values === 'object' ? objectData.values : {})
+    const activeFields = useMemo(() => {
+        const activeFieldsFromSchema = Array.isArray(typeDef?.fields)
+            ? typeDef.fields
+                .filter((field) => !!field?.active)
+                .filter((field) => !['name', 'url'].includes(String(field?.key || '').trim().toLowerCase()))
+                .slice()
+                .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0))
+            : [];
+
+        if (activeFieldsFromSchema.length > 0) {
+            return activeFieldsFromSchema;
+        }
+
+        return Object.keys(objectData?.values && typeof objectData.values === 'object' ? objectData.values : {})
             .sort((a, b) => a.localeCompare(b))
             .map((key, index) => ({
                 key,
@@ -70,6 +123,7 @@ export default function ObjectDetailsDrawer({
                 active: true,
                 order: index + 1,
             }));
+    }, [objectData?.values, typeDef?.fields]);
 
     const canEdit = typeof onEdit === 'function';
     const canDelete = typeof onDelete === 'function';
@@ -108,7 +162,7 @@ export default function ObjectDetailsDrawer({
                         <div key={field.key} className="object-hub-details-row">
                             <span className="object-hub-details-key">{field.label}</span>
                             <span className="object-hub-details-value">
-                                {renderNestedValue(objectData?.values?.[field.key])}
+                                <ExpandableValue value={objectData?.values?.[field.key]} />
                             </span>
                         </div>
                     ))}
