@@ -97,7 +97,7 @@ ADMIN_PERMISSION_ID = "isAdmin"
 USER_MANAGEMENT_PERMISSION_ID = "user-management"
 
 TEAM_PERMISSIONS = {
-    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder", "dashy"],
+    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder", "dashy", "raise-bb-credits", "csi-wallets"],
     "NASA": ["qtree", "ds", "dashy"],
     "Shimiada": ["price", "refael"],
     "Vans": ["herzitools"],
@@ -600,6 +600,40 @@ PROACTIVE_TEST_RESPONSE: dict[str, dict[str, Any]] = {
     },
 }
 
+CSI_WALLETS_OPENSHIFTS = [
+    "ocp-block-prod-a",
+    "ocp-block-stage-b",
+    "ocp-block-lab-c",
+]
+
+CSI_WALLETS_PFLEXS = [
+    "pflex-tlv-01",
+    "pflex-tlv-02",
+    "pflex-lab-01",
+]
+
+CSI_WALLETS_STORAGE_CLASSES = {
+    "ocp-block-prod-a": [
+        "powerflex-gold",
+        "powerflex-silver",
+        "powerflex-archive",
+    ],
+    "ocp-block-stage-b": [
+        "powerflex-silver",
+        "powerflex-bronze",
+    ],
+    "ocp-block-lab-c": [
+        "powerflex-lab",
+        "powerflex-silver",
+    ],
+}
+
+CSI_WALLETS_PFLEX_BY_OPENSHIFT = {
+    "ocp-block-prod-a": "pflex-tlv-01",
+    "ocp-block-stage-b": "pflex-tlv-02",
+    "ocp-block-lab-c": "pflex-lab-01",
+}
+
 
 def seed_demo_netapps() -> None:
     for idx in range(2, 13):
@@ -703,6 +737,13 @@ class AdminUserCreatePayload(BaseModel):
 class AdminUserUpdatePayload(BaseModel):
     teams: list[str] | None = None
     password: str | None = None
+
+
+class ModifyBbCreditsPayload(BaseModel):
+    switch_name: str
+    port_name: str
+    bbcredits: int
+    job_id: str | None = None
 
 
 def now_iso() -> str:
@@ -2014,6 +2055,138 @@ def volumes() -> list[str]:
     return [item["name"] for item in EXCH_VOLUMES]
 
 
+@app.get("/openshift")
+def csi_wallets_openshift() -> list[str]:
+    return CSI_WALLETS_OPENSHIFTS
+
+
+@app.get("/pflexs")
+def csi_wallets_pflexs() -> list[str]:
+    return CSI_WALLETS_PFLEXS
+
+
+@app.get("/storage_classes")
+def csi_wallets_storage_classes(openshift: str | None = None) -> list[str]:
+    safe_openshift = str(openshift or "").strip()
+    if safe_openshift:
+        return CSI_WALLETS_STORAGE_CLASSES.get(safe_openshift, [])
+
+    all_storage_classes = {
+        storage_class
+        for values in CSI_WALLETS_STORAGE_CLASSES.values()
+        for storage_class in values
+    }
+    return sorted(all_storage_classes)
+
+
+@app.get("/check-pflex-allocation")
+def csi_wallets_check_pflex_allocation(size_in_tb: float, pflex_server: str) -> dict[str, Any]:
+    safe_pflex_server = str(pflex_server or "").strip()
+    if not safe_pflex_server:
+        raise HTTPException(status_code=400, detail="pflex_server is required.")
+    if safe_pflex_server not in CSI_WALLETS_PFLEXS:
+        raise HTTPException(status_code=404, detail="pflex_server was not found.")
+    if float(size_in_tb) <= 0:
+        raise HTTPException(status_code=400, detail="size_in_tb must be greater than 0.")
+
+    available_size_in_tb = {
+        "pflex-tlv-01": 28.0,
+        "pflex-tlv-02": 14.5,
+        "pflex-lab-01": 6.0,
+    }[safe_pflex_server]
+    allocation_allowed = float(size_in_tb) <= available_size_in_tb
+
+    return {
+        "pflex_host": safe_pflex_server,
+        "requested_size_in_tb": float(size_in_tb),
+        "available_size_in_tb": available_size_in_tb,
+        "allocation_allowed": allocation_allowed,
+        "status": "ok" if allocation_allowed else "warning",
+        "message": (
+            "Requested size fits the selected PowerFlex capacity."
+            if allocation_allowed
+            else "Requested size is larger than the available PowerFlex capacity."
+        ),
+    }
+
+
+@app.get("/check-ocp-allocation")
+def csi_wallets_check_ocp_allocation(openshift: str) -> dict[str, Any]:
+    safe_openshift = str(openshift or "").strip()
+    if not safe_openshift:
+        raise HTTPException(status_code=400, detail="openshift is required.")
+    if safe_openshift not in CSI_WALLETS_STORAGE_CLASSES:
+        raise HTTPException(status_code=404, detail="openshift was not found.")
+
+    storage_classes = CSI_WALLETS_STORAGE_CLASSES[safe_openshift]
+    pflex_host = CSI_WALLETS_PFLEX_BY_OPENSHIFT[safe_openshift]
+
+    return {
+        "openshift": safe_openshift,
+        "pflex_host": pflex_host,
+        "storage_classes_count": len(storage_classes),
+        "status": "ok" if len(storage_classes) >= 2 else "warning",
+        "allocation_summary": {
+            "storage_classes": storage_classes,
+            "has_powerflex_wallets": any("powerflex" in storage_class for storage_class in storage_classes),
+            "default_storage_class": storage_classes[0] if storage_classes else "",
+        },
+    }
+
+
+@app.get("/storage_class_check")
+def csi_wallets_storage_class_check(openshift: str, storage_class: str) -> dict[str, Any]:
+    safe_openshift = str(openshift or "").strip()
+    safe_storage_class = str(storage_class or "").strip()
+    if not safe_openshift:
+        raise HTTPException(status_code=400, detail="openshift is required.")
+    if not safe_storage_class:
+        raise HTTPException(status_code=400, detail="storage_class is required.")
+    if safe_openshift not in CSI_WALLETS_STORAGE_CLASSES:
+        raise HTTPException(status_code=404, detail="openshift was not found.")
+
+    storage_classes = CSI_WALLETS_STORAGE_CLASSES[safe_openshift]
+    exists_on_openshift = safe_storage_class in storage_classes
+
+    return {
+        "openshift": safe_openshift,
+        "storage_class": safe_storage_class,
+        "pflex_host": CSI_WALLETS_PFLEX_BY_OPENSHIFT[safe_openshift],
+        "exists_on_openshift": exists_on_openshift,
+        "status": "ok" if exists_on_openshift else "error",
+        "details": {
+            "recommended_size_in_tb": 6 if "gold" in safe_storage_class else 3,
+            "provisioner": "csi-vxflexos.dellemc.com",
+            "volume_binding_mode": "Immediate" if exists_on_openshift else "Unknown",
+        },
+    }
+
+
+@app.get("/check_all_sc_ocp")
+def csi_wallets_check_all_sc_ocp(openshift: str) -> dict[str, Any]:
+    safe_openshift = str(openshift or "").strip()
+    if not safe_openshift:
+        raise HTTPException(status_code=400, detail="openshift is required.")
+    if safe_openshift not in CSI_WALLETS_STORAGE_CLASSES:
+        raise HTTPException(status_code=404, detail="openshift was not found.")
+
+    storage_classes = CSI_WALLETS_STORAGE_CLASSES[safe_openshift]
+
+    return {
+        "openshift": safe_openshift,
+        "pflex_host": CSI_WALLETS_PFLEX_BY_OPENSHIFT[safe_openshift],
+        "cs_name": {
+            storage_class: {
+                "status": "ok" if "archive" not in storage_class else "warning",
+                "provisioner": "csi-vxflexos.dellemc.com",
+                "recommended_wallet_size_in_tb": 6 if "gold" in storage_class else 3,
+                "reclaim_policy": "Delete" if "lab" not in storage_class else "Retain",
+            }
+            for storage_class in storage_classes
+        },
+    }
+
+
 def normalize_site(site: str | None) -> str:
     normalized = str(site or "").strip().lower()
     if normalized not in {"five", "nova"}:
@@ -2921,6 +3094,36 @@ def _require_network(network: str | None) -> str:
     return normalized
 
 
+def _require_positive_bbcredits(value: int) -> int:
+    safe_value = int(value)
+    if safe_value <= 0:
+        raise HTTPException(status_code=400, detail="bbcredits must be greater than 0.")
+    return safe_value
+
+
+def _get_mds_switch_names(team: str) -> list[str]:
+    response = catalog_service.list_objects(team, "mds")
+    objects = response.get("objects", [])
+    names: list[str] = []
+    seen_names: set[str] = set()
+
+    for item in objects:
+        if not isinstance(item, dict):
+            continue
+        values = item.get("values", {})
+        candidate = str(
+            item.get("name")
+            or (values.get("name") if isinstance(values, dict) else "")
+            or ""
+        ).strip()
+        if not candidate or candidate in seen_names:
+            continue
+        seen_names.add(candidate)
+        names.append(candidate)
+
+    return names
+
+
 @app.get("/demo/ui-urls")
 def demo_ui_urls() -> dict[str, Any]:
     frontend_base = "http://localhost:5173"
@@ -2949,7 +3152,53 @@ def demo_ui_urls() -> dict[str, Any]:
     }
 
 
-register_catalog_routes(app, resolve_team_name=resolve_team_name)
+@app.get("/mds/names")
+def get_mds_names(team: str) -> dict[str, Any]:
+    names = _get_mds_switch_names(team)
+    return {
+        "names": names,
+        "count": len(names),
+    }
+
+
+@app.post("/zoner/modifyBbcredits")
+def modify_bbcredits(payload: ModifyBbCreditsPayload) -> JSONResponse:
+    safe_switch_name = _require_non_empty_text(payload.switch_name, "switch_name")
+    safe_port_name = _require_non_empty_text(payload.port_name, "port_name")
+    safe_bbcredits = _require_positive_bbcredits(payload.bbcredits)
+    requested_job_id = str(payload.job_id or "").strip()
+
+    time.sleep(random.uniform(1.4, 2.8))
+
+    if random.random() < 0.45:
+        raise HTTPException(
+            status_code=random.choice([400, 403, 404, 409, 422]),
+            detail=random.choice(
+                [
+                    f"Switch '{safe_switch_name}' was not found in the zoning domain.",
+                    f"Port '{safe_port_name}' is not available for bbcredits update.",
+                    f"bbcredits value {safe_bbcredits} is outside the allowed range for this switch.",
+                    f"Job '{requested_job_id or 'N/A'}' was rejected by the zoner service.",
+                ]
+            ),
+        )
+
+    status_code = random.choice([200, 201])
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "success",
+            "message": f"BB credits update accepted for {safe_switch_name} {safe_port_name}.",
+            "jobId": requested_job_id or f"BB-{_utc_now_ms()}-{uuid4().hex[:6].upper()}",
+            "switch_name": safe_switch_name,
+            "port_name": safe_port_name,
+            "bbcredits": safe_bbcredits,
+            "receivedAt": now_iso(),
+        },
+    )
+
+
+catalog_service = register_catalog_routes(app, resolve_team_name=resolve_team_name)
 
 
 @app.post("/qtree")

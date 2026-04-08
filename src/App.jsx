@@ -20,6 +20,8 @@ import NetappUpgradePage from './pages/NetappUpgradePage';
 import NetappMultiExecPage from './pages/NetappMultiExecPage';
 import ProactivePage from './pages/ProactivePage';
 import DashyPage from './pages/DashyPage';
+import CsiWalletsPage from './pages/CsiWalletsPage';
+import RaiseBbCreditsPage from './pages/RaiseBbCreditsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -134,8 +136,14 @@ export default function App() {
               <Route path="/troubleshooter" element={
                 <PermissionRoute screenId="troubleshooter"><TroubleshooterPage /></PermissionRoute>
               } />
+              <Route path="/csi-wallets" element={
+                <PermissionRoute screenId="csi-wallets"><CsiWalletsPage /></PermissionRoute>
+              } />
               <Route path="/scripts/mds-builder" element={
                 <PermissionRoute screenId="mds-builder"><MdsBuilderPage /></PermissionRoute>
+              } />
+              <Route path="/scripts/raise-bb-credits" element={
+                <PermissionRoute screenId="raise-bb-credits"><RaiseBbCreditsPage /></PermissionRoute>
               } />
 
               {/* Tools */}

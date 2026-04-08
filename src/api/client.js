@@ -17,6 +17,7 @@ export const API_CONFIG = {
 
 API_CONFIG.kprBaseUrl = import.meta.env.VITE_KPR_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.exchBaseUrl = import.meta.env.VITE_EXCH_API_BASE_URL || API_CONFIG.mainBaseUrl;
+API_CONFIG.csiWalletsBaseUrl = import.meta.env.VITE_CSI_WALLETS_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.troubleshooterBaseUrl = import.meta.env.VITE_TROUBLESHOOTER_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.proactiveBlockBaseUrl = import.meta.env.VITE_PROACTIVE_BLOCK_API_BASE_URL || API_CONFIG.mainBaseUrl;
 API_CONFIG.proactiveNasaBaseUrl = import.meta.env.VITE_PROACTIVE_NASA_API_BASE_URL || API_CONFIG.mainBaseUrl;
@@ -29,6 +30,12 @@ API_CONFIG.kprApiBearerToken = String(
 API_CONFIG.exchApiBearerToken = String(
     import.meta.env.VITE_EXCH_API_BEARER_TOKEN
     || import.meta.env.VITE_EXCH_API_TOKEN
+    || API_CONFIG.mainApiBearerToken
+    || '',
+).trim();
+API_CONFIG.csiWalletsApiBearerToken = String(
+    import.meta.env.VITE_CSI_WALLETS_API_BEARER_TOKEN
+    || import.meta.env.VITE_CSI_WALLETS_API_TOKEN
     || API_CONFIG.mainApiBearerToken
     || '',
 ).trim();
@@ -157,6 +164,10 @@ export const http = {
     exch: createHttpClient(API_CONFIG.exchBaseUrl, {
         withAuth: true,
         bearerToken: API_CONFIG.exchApiBearerToken,
+    }),
+    csiWallets: createHttpClient(API_CONFIG.csiWalletsBaseUrl, {
+        withAuth: true,
+        bearerToken: API_CONFIG.csiWalletsApiBearerToken,
     }),
     troubleshooter: createHttpClient(API_CONFIG.troubleshooterBaseUrl, {
         withAuth: true,

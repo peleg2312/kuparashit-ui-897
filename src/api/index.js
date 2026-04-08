@@ -2,6 +2,7 @@ export { authApi } from './auth';
 export { mainApi } from './main';
 export { kprApi } from './kpr';
 export { exchApi } from './exch';
+export { csiWalletsApi } from './csiWallets';
 export { herziApi } from './herzi';
 export { priceApi } from './price';
 export { refaelApi } from './refael';

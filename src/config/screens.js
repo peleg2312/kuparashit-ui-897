@@ -3,6 +3,7 @@ import {
     HiSwitchHorizontal, HiCollection, HiRefresh, HiUpload,
     HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch, HiCode, HiUserGroup
 } from 'react-icons/hi';
+import { HiWallet } from 'react-icons/hi2';
 
 const screens = [
     // Main Dashboard group
@@ -16,7 +17,9 @@ const screens = [
     { id: 'qtree', label: 'QTREE', path: '/qtree', icon: HiCollection, group: 'storage', groupLabel: 'Storage Management' },
     { id: 'snapmirror', label: 'SNAPMIRROR', path: '/snapmirror', icon: HiRefresh, group: 'storage', groupLabel: 'Storage Management' },
     { id: 'troubleshooter', label: 'Troubleshooter', path: '/troubleshooter', icon: HiSearch, group: 'storage', groupLabel: 'Storage Management' },
+    { id: 'csi-wallets', label: 'CSI Wallets', path: '/csi-wallets', icon: HiWallet, group: 'storage', groupLabel: 'Storage Management' },
     { id: 'mds-builder', label: 'MDS Builder', path: '/scripts/mds-builder', icon: HiCode, group: 'scripts', groupLabel: 'Scripts' },
+    { id: 'raise-bb-credits', label: 'Raise BB Credits', path: '/scripts/raise-bb-credits', icon: HiSwitchHorizontal, group: 'scripts', groupLabel: 'Scripts' },
 
     // Tools
     { id: 'refael', label: 'Refael Tools', path: '/refael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },

@@ -1,0 +1,194 @@
+.bbcredits-page-content {
+    overflow: auto;
+}
+
+.bbcredits-page {
+    width: min(980px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 12px;
+    padding-bottom: 8px;
+}
+
+.bbcredits-info-card,
+.bbcredits-form-card {
+    padding: 18px 20px;
+}
+
+.bbcredits-info-card {
+    display: grid;
+    gap: 10px;
+}
+
+.bbcredits-info-card h2,
+.bbcredits-form-card__header h2,
+.bbcredits-result-modal__banner h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.bbcredits-info-card p,
+.bbcredits-result-modal__message {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.bbcredits-info-card__eyebrow,
+.bbcredits-form-card__eyebrow,
+.bbcredits-result-modal__eyebrow {
+    margin: 0 0 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.bbcredits-error-banner {
+    border: 1px solid var(--error);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--error), transparent 92%);
+    color: var(--error);
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.bbcredits-form-card {
+    display: grid;
+    gap: 18px;
+}
+
+.bbcredits-form-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bbcredits-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.bbcredits-result-modal {
+    width: min(620px, 100%);
+    padding: 0;
+    overflow: hidden;
+}
+
+.bbcredits-result-modal__banner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 22px;
+}
+
+.bbcredits-result-modal__banner.is-success {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--success), transparent 84%), transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--success), transparent 75%);
+}
+
+.bbcredits-result-modal__banner.is-error {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--error), transparent 88%), transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--error), transparent 72%);
+}
+
+.bbcredits-result-modal__icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.bbcredits-result-modal__banner.is-success .bbcredits-result-modal__icon {
+    color: var(--success);
+}
+
+.bbcredits-result-modal__banner.is-error .bbcredits-result-modal__icon {
+    color: var(--error);
+}
+
+.bbcredits-result-modal__body {
+    padding: 22px;
+    display: grid;
+    gap: 14px;
+}
+
+.bbcredits-result-modal__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bbcredits-badge-error {
+    background: color-mix(in srgb, var(--error), transparent 88%);
+    color: var(--error);
+}
+
+.bbcredits-result-modal__detail {
+    display: grid;
+    gap: 8px;
+}
+
+.bbcredits-result-modal__detail span {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.bbcredits-result-modal__detail pre {
+    margin: 0;
+    border: 1px solid color-mix(in srgb, var(--error), transparent 80%);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--error), transparent 94%);
+    color: var(--text-primary);
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.bbcredits-result-modal__footer {
+    margin: 0;
+    padding: 0 22px 22px;
+    border-top: 0;
+}
+
+@media (max-width: 900px) {
+    .bbcredits-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .bbcredits-form-card__header,
+    .bbcredits-result-modal__banner {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .bbcredits-info-card,
+    .bbcredits-form-card,
+    .bbcredits-result-modal__body,
+    .bbcredits-result-modal__banner {
+        padding-inline: 16px;
+    }
+
+    .bbcredits-result-modal__footer {
+        padding: 0 16px 16px;
+    }
+}

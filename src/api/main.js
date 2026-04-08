@@ -324,6 +324,15 @@ export const mainApi = {
             await getJsonWithFallback(['/netapps']),
         ));
     },
+    async getMdsSwitchNames(team) {
+        return runApiRequest('main.getMdsSwitchNames', async () => {
+            const result = await getJsonWithFallback(['/mds/names'], team ? { team } : {});
+            const names = Array.isArray(result?.names) ? result.names : asArrayResponse(result);
+            return names
+                .map((item) => String(item || '').trim())
+                .filter(Boolean);
+        });
+    },
     async getDropdownOptions(source, params = {}) {
         const normalizedSource = String(source || '').trim();
 
@@ -346,6 +355,15 @@ export const mainApi = {
     },
     async executeAction(endpoint, payload = {}) {
         return runApiRequest('main.executeAction', () => http.main.post(endpoint, payload));
+    },
+    async modifyBbCredits(payload = {}) {
+        return runApiRequest('main.modifyBbCredits', async () => {
+            const response = await http.main.post('/zoner/modifyBbcredits', payload);
+            return {
+                ...(response?.data || {}),
+                statusCode: response?.status,
+            };
+        });
     },
     async executeSmallMdsBuilder(payload = {}) {
         return runApiRequest('main.executeSmallMdsBuilder', () => {

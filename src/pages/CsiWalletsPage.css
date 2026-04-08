@@ -1,0 +1,899 @@
+.csi-wallets-page {
+    --csi-accent: #d83a47;
+    --csi-accent-soft: rgba(216, 58, 71, 0.16);
+    --csi-accent-deep: #f06c78;
+    --csi-panel-bg: linear-gradient(180deg, var(--bg-card, #171b23) 0%, color-mix(in srgb, var(--bg-card, #171b23), #0a0d12 24%) 100%);
+    --csi-surface: var(--bg-card, #171b23);
+    --csi-surface-2: var(--bg-input, #11161d);
+    --csi-surface-3: color-mix(in srgb, var(--bg-secondary, #1b212b), var(--bg-card, #171b23) 42%);
+    --csi-border: rgba(255, 255, 255, 0.11);
+    --csi-text: #f4f7fb;
+    --csi-text-soft: #c0c7d6;
+    --csi-text-muted: #8c95a8;
+    --csi-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+
+.csi-wallets-page .page-header {
+    min-height: 74px;
+    padding-top: 16px;
+    padding-bottom: 10px;
+}
+
+.csi-wallets-page .page-content {
+    overflow: hidden;
+    padding-bottom: 20px;
+}
+
+.csi-wallets__header {
+    align-items: flex-start;
+}
+
+.csi-wallets__header-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.csi-wallets__header-stat {
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--csi-border);
+    background: var(--csi-surface);
+    color: var(--csi-text-soft);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.csi-wallets__header-stat strong {
+    color: var(--csi-text);
+    font-weight: 800;
+}
+
+.csi-wallets__alert {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.csi-wallets__alert--error {
+    border: 1px solid color-mix(in srgb, var(--error), transparent 46%);
+    background: color-mix(in srgb, var(--error), transparent 92%);
+    color: var(--error);
+}
+
+.csi-wallets__workspace {
+    display: grid;
+    grid-template-columns: minmax(410px, 470px) minmax(0, 1fr);
+    gap: 12px;
+    height: calc(100vh - 136px);
+    min-height: 500px;
+    max-height: calc(100vh - 136px);
+    align-items: stretch;
+    overflow: hidden;
+}
+
+.csi-wallets-page .glass-card {
+    box-shadow: none;
+}
+
+.csi-wallets__panel {
+    min-height: 0;
+    height: 90%;
+    max-height:90%;   
+    padding: 14px 14px 18px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: auto;
+    border: 1px solid var(--csi-border);
+    background: var(--csi-panel-bg);
+    box-shadow: var(--csi-shadow);
+}
+
+.csi-wallets__panel--controls {
+    overflow: auto;
+}
+
+.csi-wallets__panel--result {
+    overflow: hidden;
+}
+
+.csi-wallets__panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.csi-wallets__panel-head h2 {
+    margin-top: 2px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.csi-wallets__panel-head p {
+    margin-top: 2px;
+    color: var(--csi-text-soft);
+    font-size: 0.76rem;
+}
+
+.csi-wallets__panel-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: var(--csi-accent-soft);
+    color: var(--csi-accent-deep);
+}
+
+.csi-wallets__eyebrow {
+    color: var(--csi-text-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.csi-wallets__section {
+    display: grid;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--csi-border);
+}
+
+.csi-wallets__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__section-head h3 {
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.csi-wallets__section-head span,
+.csi-wallets__function-meta,
+.csi-wallets__endpoint,
+.csi-wallets__chip {
+    width: fit-content;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.csi-wallets__section-head span,
+.csi-wallets__function-meta,
+.csi-wallets__chip {
+    background: var(--csi-surface);
+    color: var(--csi-text-soft);
+}
+
+.csi-wallets__endpoint {
+    background: var(--csi-surface-2);
+    color: var(--csi-text-soft);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.csi-wallets__section-copy,
+.csi-wallets__helper-note,
+.csi-wallets__note,
+.csi-wallets__result-summary p,
+.csi-wallets__loading p,
+.csi-wallets__empty p,
+.csi-wallets__field small {
+    color: var(--csi-text-soft);
+}
+
+.csi-wallets__function-picker,
+.csi-wallets__form-grid,
+.csi-wallets__result,
+.csi-wallets__result-group {
+    display: grid;
+    gap: 8px;
+}
+
+.csi-wallets__function-picker {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+}
+
+.csi-wallets__function-card {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--csi-border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface-2) 100%);
+    padding: 15px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    text-align: left;
+    align-content: stretch;
+    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.csi-wallets__function-card:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--csi-accent), transparent 45%);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--csi-accent), transparent 90%);
+}
+
+.csi-wallets__function-card.is-selected {
+    border-color: color-mix(in srgb, var(--csi-accent), transparent 30%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--csi-accent-soft), var(--csi-surface-3) 34%) 0%, var(--csi-surface-2) 100%);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--csi-accent), transparent 88%);
+}
+
+.csi-wallets__function-card:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.csi-wallets__function-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--csi-accent-soft);
+    color: var(--csi-accent-deep);
+}
+
+.csi-wallets__function-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 210px);
+    gap: 12px;
+    align-content: start;
+    align-items: center;
+}
+
+.csi-wallets__function-main {
+    display: grid;
+    gap: 4px;
+}
+
+.csi-wallets__function-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__function-title-row strong {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--csi-text);
+}
+
+.csi-wallets__function-desc {
+    color: var(--csi-text-soft);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    text-align: right;
+}
+
+.csi-wallets__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.csi-wallets__chip {
+    border: 1px solid var(--csi-border);
+}
+
+.csi-wallets__chip--muted {
+    background: color-mix(in srgb, var(--csi-surface), white 10%);
+}
+
+.csi-wallets__field {
+    display: grid;
+    gap: 4px;
+    position: relative;
+}
+
+.csi-wallets__field span {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: var(--csi-text-soft);
+}
+
+.csi-wallets__field small {
+    font-size: 0.68rem;
+}
+
+.csi-wallets-page .input-field {
+    min-height: 44px;
+    border-color: var(--csi-border);
+    background: var(--csi-surface-2);
+    color: var(--csi-text);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+}
+
+.csi-wallets-page .input-field::placeholder {
+    color: var(--csi-text-muted);
+}
+
+.csi-wallets-page .input-field:focus {
+    border-color: var(--csi-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--csi-accent), transparent 72%);
+}
+
+.csi-select {
+    position: relative;
+    overflow: visible;
+}
+
+.csi-select-trigger {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid color-mix(in srgb, var(--csi-border), white 8%);
+    border-radius: var(--radius-md);
+    background: var(--csi-surface-2);
+    color: var(--csi-text);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.csi-select-trigger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--csi-accent), transparent 64%);
+}
+
+.csi-select-trigger.is-open {
+    border-color: var(--csi-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--csi-accent), transparent 72%);
+    background: color-mix(in srgb, var(--csi-surface-2), #ffffff 4%);
+}
+
+.csi-select-trigger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.csi-select-value,
+.csi-select-placeholder {
+    display: inline-block;
+    min-width: 0;
+    flex: 1;
+    line-height: 1.2;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.csi-select-placeholder {
+    color: var(--csi-text-muted);
+}
+
+.csi-select-chevron {
+    color: var(--csi-text-soft);
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+}
+
+.csi-select-chevron.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.csi-select-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--csi-border), var(--csi-text) 8%);
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface) 100%);
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(8px);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.csi-select-options {
+    max-height: min(300px, 36vh);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 3px;
+}
+
+.csi-select-option {
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--csi-border), transparent 70%);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: color-mix(in srgb, var(--csi-surface-2), transparent 10%);
+    color: var(--csi-text);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.csi-select-option:hover {
+    border-color: color-mix(in srgb, var(--csi-border), white 12%);
+    background: color-mix(in srgb, var(--csi-surface-3), transparent 4%);
+}
+
+.csi-select-option.is-selected {
+    border-color: color-mix(in srgb, var(--csi-accent), transparent 42%);
+    background: color-mix(in srgb, var(--csi-accent-soft), var(--csi-surface) 34%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--csi-accent), transparent 76%);
+}
+
+.csi-select-option-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid var(--csi-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--csi-surface-2), #090c10 26%);
+}
+
+.csi-select-option-check.is-selected {
+    border-color: color-mix(in srgb, var(--csi-accent), transparent 26%);
+    background: color-mix(in srgb, var(--csi-accent-soft), var(--csi-surface) 20%);
+    color: var(--csi-accent-deep);
+}
+
+.csi-select-option-label {
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+}
+
+.csi-select-empty {
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--csi-surface-2);
+    color: var(--csi-text-muted);
+    font-size: 0.78rem;
+}
+
+.csi-wallets__composer {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--csi-border);
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--csi-surface) 0%, var(--csi-surface-2) 100%);
+}
+
+.csi-wallets__composer-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px;
+}
+
+.csi-wallets__run-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+}
+
+.csi-wallets__check-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 16px;
+    justify-content: center;
+    background: linear-gradient(135deg, #ef4d5b 0%, #a61f2d 100%);
+    --btn-primary-glow: var(--csi-accent);
+}
+
+.csi-wallets__source-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+}
+
+.csi-wallets__source-grid--compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.csi-wallets__source-card,
+.csi-wallets__result-block,
+.csi-wallets__result-section,
+.csi-wallets__raw {
+    border: 1px solid var(--csi-border);
+    border-radius: 18px;
+    background: var(--csi-surface);
+}
+
+.csi-wallets__source-card {
+    padding: 8px 10px;
+    display: grid;
+    gap: 2px;
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface-2) 100%);
+}
+
+.csi-wallets__source-card span,
+.csi-wallets__detail-key,
+.csi-wallets__result-section-head h4,
+.csi-wallets__result-block-head span {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.csi-wallets__source-card span,
+.csi-wallets__detail-key,
+.csi-wallets__result-block-head span {
+    color: var(--csi-text-muted);
+}
+
+.csi-wallets__source-card strong {
+    font-size: 0.82rem;
+    color: var(--csi-text);
+}
+
+.csi-wallets__empty {
+    margin-top: 6px;
+    min-height: 120px;
+    border: 1px dashed var(--csi-border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface-2) 100%);
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    text-align: center;
+}
+
+.csi-wallets__empty-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    color: var(--csi-accent-deep);
+    background: var(--csi-accent-soft);
+}
+
+.csi-wallets__empty h3,
+.csi-wallets__result-title h3,
+.csi-wallets__loading h4,
+.csi-wallets__result-block-head h4 {
+    font-weight: 800;
+}
+
+.csi-wallets__result {
+    margin-top: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 4px;
+    align-content: start;
+}
+
+.csi-wallets__result > *,
+.csi-wallets__result-block,
+.csi-wallets__result-section,
+.csi-wallets__raw,
+.csi-wallets__result-group,
+.csi-wallets__detail-list {
+    min-width: 0;
+}
+
+.csi-wallets__result-summary {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__result-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__summary-side {
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+}
+
+.csi-wallets__summary-side small {
+    color: var(--csi-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.csi-wallets__result-block {
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+.csi-wallets__result-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.csi-wallets__detail-list {
+    display: grid;
+    gap: 0;
+}
+
+.csi-wallets__detail-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--csi-border), transparent 15%);
+}
+
+.csi-wallets__detail-row:first-child {
+    padding-top: 0;
+}
+
+.csi-wallets__detail-row:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.csi-wallets__detail-value {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    text-align: right;
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+}
+
+.csi-wallets__value-text {
+    font-size: 1rem;
+    color: var(--csi-text);
+}
+
+.csi-wallets__value-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    background: var(--csi-surface-2);
+    color: var(--csi-text);
+}
+
+.csi-wallets__value-badge.is-ok,
+.csi-wallets__value-badge.is-true {
+    background: color-mix(in srgb, var(--success), transparent 86%);
+    color: var(--success);
+}
+
+.csi-wallets__value-badge.is-warning {
+    background: color-mix(in srgb, var(--warning), transparent 84%);
+    color: var(--warning);
+}
+
+.csi-wallets__value-badge.is-error,
+.csi-wallets__value-badge.is-false {
+    background: color-mix(in srgb, var(--error), transparent 86%);
+    color: var(--error);
+}
+
+.csi-wallets__value-badge.is-neutral {
+    background: var(--csi-surface-2);
+    color: var(--csi-text);
+}
+
+.csi-wallets__result-section {
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface-2) 100%);
+}
+
+.csi-wallets__result-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.csi-wallets__result-section-head h4 {
+    color: var(--csi-text-soft);
+}
+
+.csi-wallets__simple-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.csi-wallets__simple-list-item {
+    padding: 7px 10px;
+    border-radius: 14px;
+    background: var(--csi-surface-2);
+    font-size: 0.96rem;
+}
+
+.csi-wallets__note {
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px dashed var(--csi-border);
+    background: var(--csi-surface-2);
+    font-size: 0.76rem;
+}
+
+.csi-wallets__loading {
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid var(--csi-border);
+    background: linear-gradient(180deg, var(--csi-surface-3) 0%, var(--csi-surface-2) 100%);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.csi-wallets__loading svg {
+    color: var(--accent);
+}
+
+.csi-wallets__raw {
+    overflow: hidden;
+    background: var(--csi-surface-2);
+}
+
+.csi-wallets__raw summary {
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--csi-text-soft);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.csi-wallets__raw pre {
+    margin: 0;
+    padding: 0 12px 12px;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--csi-text);
+}
+
+@media (max-width: 1180px) {
+    .csi-wallets-page .page-content {
+        overflow: auto;
+    }
+
+    .csi-wallets__workspace {
+        grid-template-columns: 1fr;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .csi-wallets__function-picker,
+    .csi-wallets__form-grid,
+    .csi-wallets__source-grid--compact {
+        grid-template-columns: 1fr;
+    }
+
+    .csi-wallets__run-row {
+        grid-template-columns: 1fr;
+    }
+
+    .csi-wallets__check-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .csi-wallets__panel {
+        padding: 18px;
+        overflow: visible;
+    }
+
+    .csi-wallets__panel-head,
+    .csi-wallets__section-head,
+    .csi-wallets__result-summary,
+    .csi-wallets__result-block-head,
+    .csi-wallets__function-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .csi-wallets__function-copy {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .csi-wallets__function-desc {
+        text-align: left;
+    }
+
+    .csi-wallets__summary-side {
+        justify-items: start;
+    }
+
+    .csi-wallets__detail-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .csi-wallets__detail-value {
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    .csi-wallets__header-stats,
+    .csi-wallets__composer-head {
+        width: 100%;
+    }
+
+    .csi-wallets__loading {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}
