@@ -1,7 +1,7 @@
 import {
     HiServer, HiDatabase, HiChip, HiDesktopComputer,
     HiSwitchHorizontal, HiCollection, HiRefresh, HiUpload,
-    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch, HiCode, HiUserGroup
+    HiCurrencyDollar, HiCog, HiTerminal, HiLightningBolt, HiSearch, HiCode, HiUserGroup, HiPlay
 } from 'react-icons/hi';
 import { HiWallet } from 'react-icons/hi2';
 
@@ -20,6 +20,7 @@ const screens = [
     { id: 'csi-wallets', label: 'CSI Wallets', path: '/csi-wallets', icon: HiWallet, group: 'storage', groupLabel: 'Storage Management' },
     { id: 'mds-builder', label: 'MDS Builder', path: '/scripts/mds-builder', icon: HiCode, group: 'scripts', groupLabel: 'Scripts' },
     { id: 'raise-bb-credits', label: 'Raise BB Credits', path: '/scripts/raise-bb-credits', icon: HiSwitchHorizontal, group: 'scripts', groupLabel: 'Scripts' },
+    { id: 'script-actions', label: 'Script Actions', path: '/scripts/actions', icon: HiPlay, group: 'scripts', groupLabel: 'Scripts' },
 
     // Tools
     { id: 'refael', label: 'Refael Tools', path: '/refael-tools', icon: HiUpload, group: 'tools', groupLabel: 'Advanced Tools' },

@@ -97,7 +97,7 @@ ADMIN_PERMISSION_ID = "isAdmin"
 USER_MANAGEMENT_PERMISSION_ID = "user-management"
 
 TEAM_PERMISSIONS = {
-    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder", "dashy", "raise-bb-credits", "csi-wallets"],
+    "BLOCK": ["rdm", "ds", "esx", "vms", "exch", "qtree", "refael", "price", "herzitools", "netapp-upgrade", "netapp-multi-exec", "mds-builder", "dashy", "raise-bb-credits", "csi-wallets", "script-actions"],
     "NASA": ["qtree", "ds", "dashy"],
     "Shimiada": ["price", "refael"],
     "Vans": ["herzitools"],
@@ -117,6 +117,57 @@ TEAM_PERMISSION_FLAGS = {
 GROUP_PERMISSION_KEYS: dict[str, list[str]] = {
     team_name: [permission_key]
     for team_name, permission_key in TEAM_PERMISSION_FLAGS.items()
+}
+
+SCRIPTS_DB: dict[str, dict[str, Any]] = {
+    "create_portchannel": {
+        "id": "create_portchannel",
+        "label": "Create Port Channel",
+        "description": "Create a new port channel on the switch",
+        "url": "http://localhost:8000/scripts/mock-target",
+        "method": "POST",
+        "fields_required": [
+            {"name": "switch_name", "label": "Switch Name", "type": "dropdown-api", "url": "http://localhost:8000/scripts/options/mds-switches", "required": True},
+            {"name": "port_channel_id", "label": "Port Channel ID", "type": "number", "min": 1, "max": 999, "required": True},
+            {"name": "description", "label": "Description", "type": "text", "required": False},
+        ],
+    },
+    "change_bb_credits": {
+        "id": "change_bb_credits",
+        "label": "Change BB Credits",
+        "description": "Modify BB credits on an MDS port",
+        "url": "http://localhost:8000/scripts/mock-target",
+        "method": "POST",
+        "fields_required": [
+            {"name": "switch_name", "label": "Switch Name", "type": "dropdown-api", "url": "http://localhost:8000/scripts/options/mds-switches", "required": True},
+            {"name": "port_name", "label": "Port Name", "type": "text", "required": True},
+            {"name": "bbcredits", "label": "BB Credits", "type": "number", "min": 1, "required": True},
+        ],
+    },
+    "remove_zone": {
+        "id": "remove_zone",
+        "label": "Remove Zone",
+        "description": "Remove a zone from the active zoneset",
+        "url": "http://localhost:8000/scripts/mock-target",
+        "method": "DELETE",
+        "fields_required": [
+            {"name": "switch_name", "label": "Switch Name", "type": "dropdown-api", "url": "http://localhost:8000/scripts/options/mds-switches", "required": True},
+            {"name": "zone_name", "label": "Zone Name", "type": "text", "required": True},
+            {"name": "confirm", "label": "Confirm Removal", "type": "toggle", "required": False},
+        ],
+    },
+    "set_port_speed": {
+        "id": "set_port_speed",
+        "label": "Set Port Speed",
+        "description": "Change the speed of a switch port",
+        "url": "http://localhost:8000/scripts/mock-target",
+        "method": "PUT",
+        "fields_required": [
+            {"name": "switch_name", "label": "Switch Name", "type": "dropdown-api", "url": "http://localhost:8000/scripts/options/mds-switches", "required": True},
+            {"name": "port_name", "label": "Port Name", "type": "text", "required": True},
+            {"name": "speed_gbps", "label": "Speed (Gbps)", "type": "number", "min": 1, "max": 64, "required": True},
+        ],
+    },
 }
 
 VC_META = {
@@ -3257,6 +3308,135 @@ def qtree_patch(payload: QtreePatchPayload, network: str) -> dict[str, Any]:
         body.pop("job_id", None)
 
     return _create_job("/qtree/", body)
+
+
+@app.get("/scripts")
+def get_scripts() -> list[dict[str, Any]]:
+    return list(SCRIPTS_DB.values())
+
+
+@app.get("/scripts/options/mds-switches")
+def get_script_options_mds_switches() -> list[str]:
+    return ["MDS-TLV-01", "MDS-TLV-02", "MDS-NYC-01", "MDS-NYC-02", "MDS-LON-01"]
+
+
+# Local echo endpoint scripts can target without needing internet access.
+# Accepts any method, echoes back what it received plus a fake jobId.
+@app.api_route("/scripts/mock-target", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def scripts_mock_target(request: Request) -> dict[str, Any]:
+    method = request.method.upper()
+    query = dict(request.query_params)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    return {
+        "status": "success",
+        "message": f"Mock target received {method} request.",
+        "method": method,
+        "query": query,
+        "body": body,
+        "jobId": f"MOCK-{_utc_now_ms()}-{uuid4().hex[:6].upper()}",
+        "receivedAt": now_iso(),
+    }
+
+
+def _normalize_script_payload(payload: dict[str, Any], script_id: str | None = None) -> dict[str, Any]:
+    raw_id = str(payload.get("id") or script_id or "").strip()
+    if not raw_id:
+        raise HTTPException(status_code=400, detail="Script id is required.")
+    label = str(payload.get("label") or "").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="Script label is required.")
+    url = str(payload.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Script url is required.")
+    method = str(payload.get("method") or "POST").strip().upper()
+    if method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported method '{method}'.")
+    description = str(payload.get("description") or "").strip()
+
+    raw_fields = payload.get("fields_required") or []
+    if not isinstance(raw_fields, list):
+        raise HTTPException(status_code=400, detail="fields_required must be a list.")
+
+    fields: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for index, raw_field in enumerate(raw_fields):
+        if not isinstance(raw_field, dict):
+            raise HTTPException(status_code=400, detail=f"Field at index {index} must be an object.")
+        name = str(raw_field.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail=f"Field at index {index} is missing 'name'.")
+        if name in seen_names:
+            raise HTTPException(status_code=400, detail=f"Duplicate field name '{name}'.")
+        seen_names.add(name)
+        field_label = str(raw_field.get("label") or name).strip()
+        field_type = str(raw_field.get("type") or "text").strip()
+        if field_type not in {"text", "number", "toggle", "dropdown-api"}:
+            raise HTTPException(status_code=400, detail=f"Unsupported field type '{field_type}' on '{name}'.")
+        entry: dict[str, Any] = {
+            "name": name,
+            "label": field_label,
+            "type": field_type,
+            "required": bool(raw_field.get("required", False)),
+        }
+        if field_type == "dropdown-api":
+            field_url = str(raw_field.get("url") or "").strip()
+            if not field_url:
+                raise HTTPException(status_code=400, detail=f"Field '{name}' (dropdown-api) requires a 'url'.")
+            entry["url"] = field_url
+        if field_type == "number":
+            if raw_field.get("min") not in (None, ""):
+                try:
+                    entry["min"] = float(raw_field["min"])
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail=f"Field '{name}' has invalid 'min'.")
+            if raw_field.get("max") not in (None, ""):
+                try:
+                    entry["max"] = float(raw_field["max"])
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail=f"Field '{name}' has invalid 'max'.")
+        fields.append(entry)
+
+    return {
+        "id": raw_id,
+        "label": label,
+        "description": description,
+        "url": url,
+        "method": method,
+        "fields_required": fields,
+    }
+
+
+@app.post("/scripts")
+def create_script(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = _normalize_script_payload(payload)
+    if normalized["id"] in SCRIPTS_DB:
+        raise HTTPException(status_code=409, detail=f"Script '{normalized['id']}' already exists.")
+    SCRIPTS_DB[normalized["id"]] = normalized
+    return normalized
+
+
+@app.put("/scripts/{script_id}")
+def update_script(script_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if script_id not in SCRIPTS_DB:
+        raise HTTPException(status_code=404, detail=f"Script '{script_id}' not found.")
+    normalized = _normalize_script_payload(payload, script_id=script_id)
+    if normalized["id"] != script_id and normalized["id"] in SCRIPTS_DB:
+        raise HTTPException(status_code=409, detail=f"Script '{normalized['id']}' already exists.")
+    if normalized["id"] != script_id:
+        del SCRIPTS_DB[script_id]
+    SCRIPTS_DB[normalized["id"]] = normalized
+    return normalized
+
+
+@app.delete("/scripts/{script_id}")
+def delete_script(script_id: str) -> dict[str, Any]:
+    if script_id not in SCRIPTS_DB:
+        raise HTTPException(status_code=404, detail=f"Script '{script_id}' not found.")
+    del SCRIPTS_DB[script_id]
+    return {"ok": True, "id": script_id}
 
 
 @app.post("/{path:path}")

@@ -22,6 +22,7 @@ import ProactivePage from './pages/ProactivePage';
 import DashyPage from './pages/DashyPage';
 import CsiWalletsPage from './pages/CsiWalletsPage';
 import RaiseBbCreditsPage from './pages/RaiseBbCreditsPage';
+import ScriptActionsPage from './pages/ScriptActionsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import UserManagementPage from './pages/UserManagementPage';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -144,6 +145,9 @@ export default function App() {
               } />
               <Route path="/scripts/raise-bb-credits" element={
                 <PermissionRoute screenId="raise-bb-credits"><RaiseBbCreditsPage /></PermissionRoute>
+              } />
+              <Route path="/scripts/actions" element={
+                <PermissionRoute screenId="script-actions"><ScriptActionsPage /></PermissionRoute>
               } />
 
               {/* Tools */}
