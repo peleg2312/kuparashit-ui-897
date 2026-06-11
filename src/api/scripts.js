@@ -1,58 +1,69 @@
 import axios from 'axios';
-import { API_CONFIG, http, runApiRequest } from './client';
+import { http, runApiRequest } from './client';
 
-export const getScripts = () => runApiRequest('getScripts', () => http.main.get('/scripts'));
+// CRUD on the demo backend (always main, with auth).
+export const getScripts = (team) => runApiRequest(
+    'getScripts',
+    () => http.main.get('/scripts', { params: team ? { team } : {} }),
+);
 
-export const createScript = (script) =>
-    runApiRequest('createScript', () => http.main.post('/scripts', script));
+export const createScript = (script, team) =>
+    runApiRequest('createScript', () => http.main.post('/scripts', script, { params: team ? { team } : {} }));
 
-export const updateScript = (id, script) =>
-    runApiRequest('updateScript', () => http.main.put(`/scripts/${id}`, script));
+export const updateScript = (id, script, team) =>
+    runApiRequest('updateScript', () => http.main.put(`/scripts/${id}`, script, { params: team ? { team } : {} }));
 
-export const deleteScript = (id) =>
-    runApiRequest('deleteScript', () => http.main.delete(`/scripts/${id}`));
+export const deleteScript = (id, team) =>
+    runApiRequest('deleteScript', () => http.main.delete(`/scripts/${id}`, { params: team ? { team } : {} }));
 
-const isAbsoluteUrl = (url) => /^https?:\/\//i.test(String(url || ''));
+// ---- Script execution / dropdown-api ----
 
-// True when `url` lives on the same origin as the configured main API backend.
-// Those requests need the authenticated http.main client; everything else (random
-// 3rd-party URLs the user types in) gets the bare rawClient with no credentials.
-function isMainBackendUrl(url) {
-    try {
-        const target = new URL(url);
-        const main = new URL(API_CONFIG.mainBaseUrl);
-        return target.origin === main.origin;
-    } catch {
-        return false;
-    }
-}
-
-// Fresh axios instance with NO baseURL, auth, or credentials —
-// scripts can point to arbitrary URLs (https://anything.example.com/...)
+// Fresh axios with NO auth/credentials — used for "other" (external) URLs.
 const rawClient = axios.create({
     timeout: 30000,
     withCredentials: false,
 });
 
-function pickClient(url) {
-    if (!isAbsoluteUrl(url)) return http.main;
-    return isMainBackendUrl(url) ? http.main : rawClient;
+/**
+ * Pick an axios client based on the user-chosen backend name.
+ *   - 'main' | 'kpr' | 'exch' | 'csiWallets' | 'troubleshooter' | 'proactiveBlock' | 'proactiveNasa'
+ *     → the matching http.* client (auth attached)
+ *   - 'other' / unknown / empty → rawClient (no auth, no credentials)
+ *
+ * The URL is used VERBATIM (always full http(s)://) — the configured client's
+ * baseURL is ignored when an absolute URL is passed.
+ */
+function pickClient(backend) {
+    const name = String(backend || 'other');
+    if (name && name !== 'other' && http[name]) return http[name];
+    return rawClient;
 }
 
-export const getDropdownOptions = (url, params = {}) => {
-    const client = pickClient(url);
+/**
+ * Fetch options for a dropdown-api field.
+ *   url      — full URL (always GET)
+ *   params   — query params (dependsOn values)
+ *   backend  — which backend's auth to attach ('main', 'kpr', ..., or 'other')
+ */
+export const getDropdownOptions = (url, params = {}, backend = 'other') => {
+    const client = pickClient(backend);
     return runApiRequest('getDropdownOptions', () => client.get(url, { params }));
 };
 
-// Execute a script by hitting its OWN url + method directly.
-// GET/DELETE send values as query params; everything else sends them as the JSON body.
+/**
+ * Execute a script by hitting its OWN url + method directly.
+ * Uses the script's `backend` field to decide which client (and therefore which
+ * auth token) to use.
+ *   - GET/DELETE  → values go as query params
+ *   - others      → values go as JSON body
+ */
 export const runScriptRequest = (script, values) => {
     const url = String(script?.url || '').trim();
     const method = String(script?.method || 'POST').toUpperCase();
     if (!url) throw new Error('Script has no url.');
 
     const usesQueryParams = method === 'GET' || method === 'DELETE';
-    const client = pickClient(url);
+    const client = pickClient(script?.backend);
 
     return runApiRequest('runScript', () => client.request({
         url,

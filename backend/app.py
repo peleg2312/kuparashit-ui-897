@@ -3311,8 +3311,8 @@ def qtree_patch(payload: QtreePatchPayload, network: str) -> dict[str, Any]:
 
 
 @app.get("/scripts")
-def get_scripts() -> list[dict[str, Any]]:
-    return list(SCRIPTS_DB.values())
+def get_scripts(team: str | None = None) -> list[dict[str, Any]]:
+    return [doc for doc in SCRIPTS_DB.values() if _script_visible_to_team(doc, team)]
 
 
 @app.get("/scripts/options/mds-switches")
@@ -3341,10 +3341,118 @@ async def scripts_mock_target(request: Request) -> dict[str, Any]:
     }
 
 
-def _normalize_script_payload(payload: dict[str, Any], script_id: str | None = None) -> dict[str, Any]:
-    raw_id = str(payload.get("id") or script_id or "").strip()
-    if not raw_id:
-        raise HTTPException(status_code=400, detail="Script id is required.")
+_ALLOWED_FIELD_TYPES = {"text", "number", "toggle", "dropdown-api", "object", "array"}
+
+
+def _normalize_item_type(raw_item: Any, parent_name: str) -> dict[str, Any]:
+    """An array's itemType: type + type-specific extras. No name/label/required."""
+    if not isinstance(raw_item, dict):
+        raise HTTPException(status_code=400, detail=f"itemType in '{parent_name}' must be an object.")
+    item_type = str(raw_item.get("type") or "text").strip()
+    if item_type not in _ALLOWED_FIELD_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported itemType '{item_type}' in '{parent_name}'.")
+
+    entry: dict[str, Any] = {"type": item_type}
+
+    if item_type == "dropdown-api":
+        url = str(raw_item.get("url") or "").strip()
+        if not url:
+            raise HTTPException(status_code=400, detail=f"itemType in '{parent_name}' (dropdown-api) requires a 'url'.")
+        entry["url"] = url
+    if item_type == "number":
+        for bk in ("min", "max"):
+            v = raw_item.get(bk)
+            if v not in (None, ""):
+                try:
+                    entry[bk] = float(v)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail=f"itemType in '{parent_name}' has invalid '{bk}'.")
+    if item_type == "object":
+        raw_sub = raw_item.get("fields") or []
+        if not isinstance(raw_sub, list):
+            raise HTTPException(status_code=400, detail=f"itemType.fields in '{parent_name}' must be a list.")
+        subfields: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for idx, raw_field in enumerate(raw_sub):
+            field = _normalize_field(raw_field, idx)
+            if field["name"] in seen:
+                raise HTTPException(status_code=400, detail=f"Duplicate sub-field name '{field['name']}' in itemType of '{parent_name}'.")
+            seen.add(field["name"])
+            subfields.append(field)
+        entry["fields"] = subfields
+    if item_type == "array":
+        nested = raw_item.get("itemType")
+        if not nested:
+            raise HTTPException(status_code=400, detail=f"Nested itemType in '{parent_name}' requires its own 'itemType'.")
+        entry["itemType"] = _normalize_item_type(nested, parent_name=f"{parent_name}.itemType")
+
+    return entry
+
+
+def _normalize_field(raw_field: Any, index: int) -> dict[str, Any]:
+    if not isinstance(raw_field, dict):
+        raise HTTPException(status_code=400, detail=f"Field at index {index} must be an object.")
+    name = str(raw_field.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail=f"Field at index {index} is missing 'name'.")
+    field_label = str(raw_field.get("label") or name).strip()
+    field_type = str(raw_field.get("type") or "text").strip()
+    if field_type not in _ALLOWED_FIELD_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported field type '{field_type}' on '{name}'.")
+
+    entry: dict[str, Any] = {
+        "name": name,
+        "label": field_label,
+        "type": field_type,
+        "required": bool(raw_field.get("required", False)),
+    }
+    if field_type == "dropdown-api":
+        field_url = str(raw_field.get("url") or "").strip()
+        if not field_url:
+            raise HTTPException(status_code=400, detail=f"Field '{name}' (dropdown-api) requires a 'url'.")
+        entry["url"] = field_url
+    if field_type == "number":
+        for bk in ("min", "max"):
+            v = raw_field.get(bk)
+            if v not in (None, ""):
+                try:
+                    entry[bk] = float(v)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail=f"Field '{name}' has invalid '{bk}'.")
+    if field_type == "object":
+        raw_sub = raw_field.get("fields") or []
+        if not isinstance(raw_sub, list):
+            raise HTTPException(status_code=400, detail=f"Field '{name}' fields must be a list.")
+        subfields: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for idx, raw_sub_field in enumerate(raw_sub):
+            sub = _normalize_field(raw_sub_field, idx)
+            if sub["name"] in seen:
+                raise HTTPException(status_code=400, detail=f"Duplicate sub-field name '{sub['name']}' in '{name}'.")
+            seen.add(sub["name"])
+            subfields.append(sub)
+        entry["fields"] = subfields
+    if field_type == "array":
+        raw_item = raw_field.get("itemType")
+        if not raw_item:
+            raise HTTPException(status_code=400, detail=f"Field '{name}' (array) requires an 'itemType' object.")
+        entry["itemType"] = _normalize_item_type(raw_item, parent_name=name)
+
+    return entry
+
+
+_ALLOWED_BACKENDS = {"other", "main", "kpr", "exch", "csiWallets", "troubleshooter", "proactiveBlock", "proactiveNasa"}
+
+
+def _normalize_script_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalize a script payload. The `id` field is intentionally NOT read from
+    the payload — ids are auto-generated by the demo store (simulating Mongo's
+    auto _id behavior).
+    """
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Payload must be a JSON object.")
+
     label = str(payload.get("label") or "").strip()
     if not label:
         raise HTTPException(status_code=400, detail="Script label is required.")
@@ -3355,6 +3463,14 @@ def _normalize_script_payload(payload: dict[str, Any], script_id: str | None = N
     if method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
         raise HTTPException(status_code=400, detail=f"Unsupported method '{method}'.")
     description = str(payload.get("description") or "").strip()
+    backend = str(payload.get("backend") or "other").strip()
+    if backend not in _ALLOWED_BACKENDS:
+        raise HTTPException(status_code=400, detail=f"Unsupported backend '{backend}'.")
+
+    raw_teams = payload.get("teams") or []
+    if not isinstance(raw_teams, list):
+        raise HTTPException(status_code=400, detail="teams must be a list of team ids.")
+    teams = [str(t).strip() for t in raw_teams if str(t).strip()]
 
     raw_fields = payload.get("fields_required") or []
     if not isinstance(raw_fields, list):
@@ -3363,78 +3479,66 @@ def _normalize_script_payload(payload: dict[str, Any], script_id: str | None = N
     fields: list[dict[str, Any]] = []
     seen_names: set[str] = set()
     for index, raw_field in enumerate(raw_fields):
-        if not isinstance(raw_field, dict):
-            raise HTTPException(status_code=400, detail=f"Field at index {index} must be an object.")
-        name = str(raw_field.get("name") or "").strip()
-        if not name:
-            raise HTTPException(status_code=400, detail=f"Field at index {index} is missing 'name'.")
-        if name in seen_names:
-            raise HTTPException(status_code=400, detail=f"Duplicate field name '{name}'.")
-        seen_names.add(name)
-        field_label = str(raw_field.get("label") or name).strip()
-        field_type = str(raw_field.get("type") or "text").strip()
-        if field_type not in {"text", "number", "toggle", "dropdown-api"}:
-            raise HTTPException(status_code=400, detail=f"Unsupported field type '{field_type}' on '{name}'.")
-        entry: dict[str, Any] = {
-            "name": name,
-            "label": field_label,
-            "type": field_type,
-            "required": bool(raw_field.get("required", False)),
-        }
-        if field_type == "dropdown-api":
-            field_url = str(raw_field.get("url") or "").strip()
-            if not field_url:
-                raise HTTPException(status_code=400, detail=f"Field '{name}' (dropdown-api) requires a 'url'.")
-            entry["url"] = field_url
-        if field_type == "number":
-            if raw_field.get("min") not in (None, ""):
-                try:
-                    entry["min"] = float(raw_field["min"])
-                except (TypeError, ValueError):
-                    raise HTTPException(status_code=400, detail=f"Field '{name}' has invalid 'min'.")
-            if raw_field.get("max") not in (None, ""):
-                try:
-                    entry["max"] = float(raw_field["max"])
-                except (TypeError, ValueError):
-                    raise HTTPException(status_code=400, detail=f"Field '{name}' has invalid 'max'.")
+        entry = _normalize_field(raw_field, index)
+        if entry["name"] in seen_names:
+            raise HTTPException(status_code=400, detail=f"Duplicate field name '{entry['name']}'.")
+        seen_names.add(entry["name"])
         fields.append(entry)
 
     return {
-        "id": raw_id,
+        # NO `id` here — assigned by caller (create) or carried over (update)
         "label": label,
         "description": description,
         "url": url,
         "method": method,
+        "backend": backend,
+        "teams": teams,
         "fields_required": fields,
     }
 
 
+def _script_visible_to_team(doc: dict[str, Any], team: str | None) -> bool:
+    """An empty/missing `teams` array means visible to everyone."""
+    teams = doc.get("teams") or []
+    if not teams:
+        return True
+    if not team:
+        return False
+    return team in teams
+
+
 @app.post("/scripts")
-def create_script(payload: dict[str, Any]) -> dict[str, Any]:
+def create_script(payload: dict[str, Any], team: str | None = None) -> dict[str, Any]:
     normalized = _normalize_script_payload(payload)
-    if normalized["id"] in SCRIPTS_DB:
-        raise HTTPException(status_code=409, detail=f"Script '{normalized['id']}' already exists.")
-    SCRIPTS_DB[normalized["id"]] = normalized
-    return normalized
+    # If the user scoped the script to specific teams, their current team must be one of them
+    if normalized["teams"] and team and team not in normalized["teams"]:
+        raise HTTPException(status_code=403, detail="Cannot create a script that excludes your current team.")
+    new_id = uuid4().hex  # 32-char hex — simulates Mongo ObjectId
+    doc = {"id": new_id, **normalized}
+    SCRIPTS_DB[new_id] = doc
+    return doc
 
 
 @app.put("/scripts/{script_id}")
-def update_script(script_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    if script_id not in SCRIPTS_DB:
+def update_script(script_id: str, payload: dict[str, Any], team: str | None = None) -> dict[str, Any]:
+    existing = SCRIPTS_DB.get(script_id)
+    if not existing:
         raise HTTPException(status_code=404, detail=f"Script '{script_id}' not found.")
-    normalized = _normalize_script_payload(payload, script_id=script_id)
-    if normalized["id"] != script_id and normalized["id"] in SCRIPTS_DB:
-        raise HTTPException(status_code=409, detail=f"Script '{normalized['id']}' already exists.")
-    if normalized["id"] != script_id:
-        del SCRIPTS_DB[script_id]
-    SCRIPTS_DB[normalized["id"]] = normalized
-    return normalized
+    if not _script_visible_to_team(existing, team):
+        raise HTTPException(status_code=403, detail="You do not have access to this script.")
+    normalized = _normalize_script_payload(payload)
+    doc = {"id": script_id, **normalized}
+    SCRIPTS_DB[script_id] = doc
+    return doc
 
 
 @app.delete("/scripts/{script_id}")
-def delete_script(script_id: str) -> dict[str, Any]:
-    if script_id not in SCRIPTS_DB:
+def delete_script(script_id: str, team: str | None = None) -> dict[str, Any]:
+    existing = SCRIPTS_DB.get(script_id)
+    if not existing:
         raise HTTPException(status_code=404, detail=f"Script '{script_id}' not found.")
+    if not _script_visible_to_team(existing, team):
+        raise HTTPException(status_code=403, detail="You do not have access to this script.")
     del SCRIPTS_DB[script_id]
     return {"ok": True, "id": script_id}
 

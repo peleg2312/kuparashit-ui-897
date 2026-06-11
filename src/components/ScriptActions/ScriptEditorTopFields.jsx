@@ -1,24 +1,8 @@
-import { METHODS } from './scriptEditorHelpers';
+import { BACKEND_OPTIONS, METHODS } from './scriptEditorHelpers';
 
-export default function ScriptEditorTopFields({ state, errors, mode, onChange }) {
+export default function ScriptEditorTopFields({ state, errors, onChange }) {
     return (
         <div className="script-editor-grid">
-            <div className="form-group">
-                <label className="form-label">
-                    Script ID
-                    <span className="required-star">*</span>
-                </label>
-                <input
-                    className="input-field"
-                    type="text"
-                    placeholder="e.g. create_portchannel"
-                    value={state.id}
-                    onChange={(e) => onChange('id', e.target.value)}
-                    disabled={mode === 'edit'}
-                />
-                {errors.id && <span className="field-error">{errors.id}</span>}
-            </div>
-
             <div className="form-group">
                 <label className="form-label">
                     Label
@@ -72,6 +56,22 @@ export default function ScriptEditorTopFields({ state, errors, mode, onChange })
                 >
                     {METHODS.map((m) => (
                         <option key={m} value={m}>{m}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="form-group">
+                <label className="form-label">
+                    Backend
+                    <span className="form-label__hint">(auth to send with the request)</span>
+                </label>
+                <select
+                    className="input-field"
+                    value={state.backend || 'other'}
+                    onChange={(e) => onChange('backend', e.target.value)}
+                >
+                    {BACKEND_OPTIONS.map((b) => (
+                        <option key={b.value} value={b.value}>{b.label}</option>
                     ))}
                 </select>
             </div>

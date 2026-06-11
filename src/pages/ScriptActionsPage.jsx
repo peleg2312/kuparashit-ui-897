@@ -11,6 +11,7 @@ import {
 import ScriptModal from '@/components/ScriptActions/ScriptModal';
 import ScriptEditorModal from '@/components/ScriptActions/ScriptEditorModal';
 import ScriptResultPopup from '@/components/ScriptActions/ScriptResultPopup';
+import { useTeam } from '@/contexts/TeamContext';
 import './ScriptActionsPage.css';
 
 const ACCENT_COLORS = [
@@ -102,10 +103,12 @@ export default function ScriptActionsPage() {
     const [search, setSearch] = useState('');
 
     const queryClient = useQueryClient();
+    const { currentTeam } = useTeam();
+    const teamId = currentTeam?.id || '';
 
     const { data: scripts, isLoading, isError, error, refetch, isFetching } = useQuery({
-        queryKey: ['scripts'],
-        queryFn: getScripts,
+        queryKey: ['scripts', teamId],
+        queryFn: () => getScripts(teamId),
         retry: false,
         refetchOnWindowFocus: false,
     });
@@ -143,16 +146,16 @@ export default function ScriptActionsPage() {
 
     const handleEditorSave = async (payload, mode) => {
         if (mode === 'create') {
-            await createScript(payload);
+            await createScript(payload, teamId);
         } else {
-            await updateScript(editorScript.id, payload);
+            await updateScript(editorScript.id, payload, teamId);
         }
         await queryClient.invalidateQueries({ queryKey: ['scripts'] });
         closeEditor();
     };
 
     const handleEditorDelete = async (id) => {
-        await deleteScript(id);
+        await deleteScript(id, teamId);
         await queryClient.invalidateQueries({ queryKey: ['scripts'] });
         closeEditor();
     };

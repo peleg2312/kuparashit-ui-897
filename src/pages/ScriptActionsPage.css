@@ -298,6 +298,267 @@
     padding-bottom: 10px;
 }
 
+/* ===== Team picker (Dashy-style chips) ===== */
+.script-team-picker__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.script-team-picker__actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.script-team-picker__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+}
+
+.script-team-chip {
+    background: color-mix(in srgb, var(--border), transparent 40%);
+    border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.script-team-chip:hover {
+    background: color-mix(in srgb, var(--primary), transparent 88%);
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary), transparent 60%);
+}
+
+.script-team-chip.is-selected {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.script-team-chip.is-selected:hover {
+    background: color-mix(in srgb, var(--primary), #000 10%);
+}
+
+.script-team-chip.is-current::after {
+    content: '★';
+    margin-left: 6px;
+    opacity: 0.7;
+    font-size: 0.7rem;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.btn-ghost:hover {
+    background: color-mix(in srgb, var(--border), transparent 40%);
+    color: var(--text-primary);
+}
+
+/* ===== Nested fields in the editor (object sub-fields + array itemType) ===== */
+.script-editor-nested {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--primary), transparent 94%);
+    border: 1px dashed color-mix(in srgb, var(--primary), transparent 65%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.script-editor-nested__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.script-editor-nested__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary);
+}
+
+.script-editor-empty--inline {
+    padding: 10px;
+    font-size: 0.8rem;
+}
+
+.script-editor-itemtype {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
+    align-items: end;
+}
+
+/* Nested rows get progressively dimmer borders */
+.script-editor-field-row.depth-1 { background: color-mix(in srgb, var(--bg-card), transparent 10%); }
+.script-editor-field-row.depth-2 { background: color-mix(in srgb, var(--bg-card), transparent 0%); }
+.script-editor-field-row.depth-3 { background: color-mix(in srgb, var(--bg-elevated), transparent 0%); }
+.script-editor-field-row.depth-4 { background: color-mix(in srgb, var(--bg-elevated), transparent 0%); }
+
+/* ===== TagInput (chip-style multi-value input) ===== */
+.tag-input {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 48px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    cursor: text;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tag-input:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 80%);
+}
+
+.tag-input__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 4px 3px 10px;
+    background: color-mix(in srgb, var(--primary), transparent 82%);
+    color: var(--primary);
+    border-radius: 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.tag-input__chip-remove {
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 2px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.tag-input__chip-remove:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--primary), transparent 70%);
+}
+
+.tag-input__input {
+    flex: 1;
+    min-width: 100px;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    padding: 4px;
+}
+
+.tag-input__input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* ===== Run-modal: nested object + array UIs ===== */
+.script-run-body {
+    display: flex !important;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    grid-template-columns: none !important;
+}
+
+.script-run-empty {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 0;
+}
+
+.script-field-object {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--primary), transparent 95%);
+    border: 1px solid color-mix(in srgb, var(--primary), transparent 80%);
+}
+
+.script-field-object__empty {
+    margin: 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.script-field-array {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.script-field-array__empty {
+    margin: 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 8px 0;
+}
+
+.script-field-array__item {
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-card), transparent 30%);
+    border: 1px solid color-mix(in srgb, var(--border), transparent 30%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.script-field-array__item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.script-field-array__item-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.script-field-array__add {
+    align-self: flex-start;
+}
+
 .btn-sm {
     padding: 5px 10px;
     font-size: 0.82rem;

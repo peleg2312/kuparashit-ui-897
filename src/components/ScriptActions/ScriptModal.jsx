@@ -1,35 +1,76 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HiExclamationCircle, HiX } from 'react-icons/hi';
-import ActionModalField from '@/components/ActionModal/ActionModalField';
 import { useDropdownMenuState } from '@/hooks/actionModal/useDropdownMenuState';
 import { getDropdownOptions } from '@/api/scripts';
+import ScriptFieldInput from './ScriptFieldInput';
+import { defaultValueForType } from './scriptEditorHelpers';
 import '@/components/ActionModal/ActionModal.css';
+
+// ----- helpers (recursive) -----
 
 function buildInitialValues(fields) {
     const values = {};
-    for (const field of fields) {
-        if (field.type === 'toggle') {
-            values[field.name] = false;
-        } else if (field.type === 'number') {
-            values[field.name] = '';
-        } else {
-            values[field.name] = '';
-        }
+    for (const field of fields || []) {
+        values[field.name] = defaultValueForType(field);
     }
     return values;
 }
 
-function validate(fields, values) {
+// Recursively check required fields. Returns an error tree shaped like the values.
+function validateValues(fields, values) {
     const errors = {};
-    for (const field of fields) {
-        if (!field.required) continue;
-        const val = values[field.name];
-        if (val === '' || val === null || val === undefined || (Array.isArray(val) && val.length === 0)) {
-            errors[field.name] = `${field.label} is required.`;
-        }
+    for (const field of fields || []) {
+        const err = validateOne(field, values?.[field.name]);
+        if (err !== null) errors[field.name] = err;
     }
-    return errors;
+    return Object.keys(errors).length > 0 ? errors : null;
 }
+
+function validateOne(field, value) {
+    const isEmpty = value === '' || value === null || value === undefined
+        || (Array.isArray(value) && value.length === 0);
+
+    if (field.required && isEmpty) {
+        return `${field.label} is required.`;
+    }
+
+    if (field.type === 'object') {
+        const subErr = validateValues(field.fields || [], value || {});
+        return subErr;
+    }
+    if (field.type === 'array') {
+        if (!Array.isArray(value) || value.length === 0) return null;
+        const itemType = field.itemType || { type: 'text' };
+        const itemErrors = [];
+        value.forEach((item, idx) => {
+            const itemErr = validateOne({ ...itemType, required: true }, item);
+            if (itemErr !== null) itemErrors[idx] = itemErr;
+        });
+        return itemErrors.length > 0 ? { items: itemErrors } : null;
+    }
+
+    return null;
+}
+
+// Walk the schema (including nested arrays/objects) and collect every
+// dropdown-api node with its runtime path, so we can fetch options for each.
+function collectDropdownApiNodes(fields, basePath = []) {
+    const out = [];
+    for (const field of fields || []) {
+        const fieldPath = [...basePath, field.name];
+        if (field.type === 'dropdown-api' && field.url) {
+            out.push({ field, path: fieldPath });
+        }
+        if (field.type === 'object' && field.fields) {
+            out.push(...collectDropdownApiNodes(field.fields, fieldPath));
+        }
+        // For arrays-of-dropdown-api or arrays-of-object-with-dropdown-api,
+        // we'd need runtime instances. Skip for now — supports top-level + object only.
+    }
+    return out;
+}
+
+// -----
 
 export default function ScriptModal({ script, onClose, onSubmit }) {
     const fields = script?.fields_required ?? [];
@@ -49,53 +90,60 @@ export default function ScriptModal({ script, onClose, onSubmit }) {
         registerDropdownRef,
     } = useDropdownMenuState();
 
-    // Build a stable key from only the dependency values — only re-run when those change
+    // All dropdown-api fields at the top level + inside top-level objects
+    const dropdownNodes = useMemo(() => collectDropdownApiNodes(fields), [fields]);
+
+    // Stable key for refetching when any depended-on value changes
     const dropdownDepKey = useMemo(() => {
-        const parts = fields
-            .filter((f) => f.type === 'dropdown-api')
-            .map((f) => {
-                const deps = Array.isArray(f.dependsOn) ? f.dependsOn : (f.dependsOn ? [f.dependsOn] : []);
-                return `${f.name}:${deps.map((d) => values[d] ?? '').join(',')}`;
-            });
-        return parts.join('|');
-    }, [fields, values]);
+        return dropdownNodes.map(({ field, path }) => {
+            const deps = Array.isArray(field.dependsOn) ? field.dependsOn : (field.dependsOn ? [field.dependsOn] : []);
+            // dep values are looked up at the same level the dropdown lives
+            const parentPath = path.slice(0, -1);
+            const parentValues = parentPath.reduce((acc, key) => (acc?.[key] ?? {}), values);
+            return `${path.join('.')}:${deps.map((d) => parentValues?.[d] ?? '').join(',')}`;
+        }).join('|');
+    }, [dropdownNodes, values]);
 
     useEffect(() => {
-        const apiFields = fields.filter((f) => f.type === 'dropdown-api' && f.url);
-        for (const field of apiFields) {
-            const deps = Array.isArray(field.dependsOn)
-                ? field.dependsOn
-                : (field.dependsOn ? [field.dependsOn] : []);
-            const hasMissingDep = deps.some((dep) => !values[dep]);
+        for (const { field, path } of dropdownNodes) {
+            const deps = Array.isArray(field.dependsOn) ? field.dependsOn : (field.dependsOn ? [field.dependsOn] : []);
+            const parentPath = path.slice(0, -1);
+            const parentValues = parentPath.reduce((acc, key) => (acc?.[key] ?? {}), values);
+            const hasMissingDep = deps.some((dep) => !parentValues?.[dep]);
             if (hasMissingDep) continue;
 
             const params = {};
-            for (const dep of deps) {
-                params[dep] = values[dep];
-            }
+            for (const dep of deps) params[dep] = parentValues[dep];
 
-            getDropdownOptions(field.url, params)
+            const pathKey = path.join('.');
+            getDropdownOptions(field.url, params, field.backend)
                 .then((data) => {
                     const list = Array.isArray(data)
                         ? data
                         : (data?.names ?? data?.data ?? data?.items ?? []);
-                    setDropdownOptions((prev) => ({ ...prev, [field.name]: list }));
+                    setDropdownOptions((prev) => ({ ...prev, [pathKey]: list }));
                 })
                 .catch(() => {
-                    setDropdownOptions((prev) => ({ ...prev, [field.name]: [] }));
+                    setDropdownOptions((prev) => ({ ...prev, [pathKey]: [] }));
                 });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dropdownDepKey]);
 
-    const handleChange = (fieldName, value) => {
-        setValues((prev) => ({ ...prev, [fieldName]: value }));
-        setErrors((prev) => ({ ...prev, [fieldName]: '' }));
+    const handleFieldChange = (fieldName, newValue) => {
+        setValues((prev) => ({ ...prev, [fieldName]: newValue }));
+        // Clear error for this field on any change
+        setErrors((prev) => {
+            if (!prev[fieldName]) return prev;
+            const next = { ...prev };
+            delete next[fieldName];
+            return next;
+        });
     };
 
     const handleSubmit = async () => {
-        const nextErrors = validate(fields, values);
-        if (Object.keys(nextErrors).length > 0) {
+        const nextErrors = validateValues(fields, values);
+        if (nextErrors) {
             setErrors(nextErrors);
             return;
         }
@@ -128,19 +176,23 @@ export default function ScriptModal({ script, onClose, onSubmit }) {
                     </button>
                 </div>
 
-                <div className="modal-body">
+                <div className="modal-body script-run-body">
+                    {fields.length === 0 && (
+                        <p className="script-run-empty">(this script takes no input fields)</p>
+                    )}
                     {fields.map((field) => (
-                        <ActionModalField
+                        <ScriptFieldInput
                             key={field.name}
-                            param={field}
-                            values={values}
-                            dropdownOptions={dropdownOptions}
+                            field={field}
+                            value={values[field.name]}
+                            onChange={(v) => handleFieldChange(field.name, v)}
+                            path={[field.name]}
                             error={errors[field.name]}
-                            openDropdownName={openDropdown}
+                            dropdownOptions={dropdownOptions}
+                            openDropdown={openDropdown}
                             searchByField={searchByField}
                             menuLayoutByField={menuLayoutByField}
-                            onFieldChange={handleChange}
-                            onOpenDropdownChange={(name) => setOpenDropdown(name)}
+                            onOpenDropdownChange={setOpenDropdown}
                             onSearchChange={setSearchValue}
                             registerDropdownRef={registerDropdownRef}
                         />

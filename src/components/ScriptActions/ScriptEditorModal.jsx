@@ -3,6 +3,7 @@ import { HiExclamationCircle, HiPlus, HiX } from 'react-icons/hi';
 import ScriptEditorTopFields from './ScriptEditorTopFields';
 import ScriptEditorFieldRow from './ScriptEditorFieldRow';
 import ScriptEditorFooter from './ScriptEditorFooter';
+import ScriptEditorTeamPicker from './ScriptEditorTeamPicker';
 import {
     blankField,
     buildInitialState,
@@ -44,7 +45,7 @@ export default function ScriptEditorModal({ script, onClose, onSave, onDelete })
         setState((prev) => ({ ...prev, fields: prev.fields.filter((_, i) => i !== index) }));
 
     const handleSave = async () => {
-        const nextErrors = validate(state, mode);
+        const nextErrors = validate(state);
         if (Object.keys(nextErrors).length > 0) {
             setErrors(nextErrors);
             return;
@@ -93,8 +94,12 @@ export default function ScriptEditorModal({ script, onClose, onSave, onDelete })
                     <ScriptEditorTopFields
                         state={state}
                         errors={errors}
-                        mode={mode}
                         onChange={handleTopChange}
+                    />
+
+                    <ScriptEditorTeamPicker
+                        value={state.teams || []}
+                        onChange={(teams) => handleTopChange('teams', teams)}
                     />
 
                     <div className="script-editor-fields-header">
