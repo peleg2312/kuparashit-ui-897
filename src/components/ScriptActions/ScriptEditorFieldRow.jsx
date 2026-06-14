@@ -94,9 +94,9 @@ function ScriptEditorTypeBody({ node, errors, onChange, depth }) {
         const subErrors = errors?.subFields || [];
 
         const addSubField = () => onChange({ fields: [...subFields, blankField()] });
-        const updateSubField = (index, key, value) => {
+        const updateSubField = (index, patch) => {
             const next = [...subFields];
-            next[index] = { ...next[index], [key]: value };
+            next[index] = { ...next[index], ...patch };
             onChange({ fields: next });
         };
         const removeSubField = (index) =>
@@ -203,21 +203,22 @@ function ScriptEditorTypeBody({ node, errors, onChange, depth }) {
 export default function ScriptEditorFieldRow({ field, index, errors, onChange, onRemove, depth = 0 }) {
     const errorAt = (key) => errors?.[key];
 
-    // Body uses a different signature (patch-merge). Translate it to (index, key, value).
-    const handleBodyChange = (patch) => {
-        Object.entries(patch).forEach(([key, value]) => onChange(index, key, value));
-    };
+    // Body uses a patch-merge signature; the row's onChange is (index, patch).
+    const handleBodyChange = (patch) => onChange(index, patch);
 
-    // When the user changes the type, also reset type-specific fields
+    // When the user changes the type, also reset type-specific fields — in a
+    // single patch so the reset can't clobber the type via stale state.
     const handleTypeChange = (nextType) => {
         if (nextType === field.type) return;
-        onChange(index, 'type', nextType);
-        onChange(index, 'url', '');
-        onChange(index, 'backend', 'other');
-        onChange(index, 'min', '');
-        onChange(index, 'max', '');
-        onChange(index, 'fields', []);
-        onChange(index, 'itemType', null);
+        onChange(index, {
+            type: nextType,
+            url: '',
+            backend: 'other',
+            min: '',
+            max: '',
+            fields: [],
+            itemType: null,
+        });
     };
 
     return (
@@ -244,7 +245,7 @@ export default function ScriptEditorFieldRow({ field, index, errors, onChange, o
                         type="text"
                         placeholder="switch_name"
                         value={field.name}
-                        onChange={(e) => onChange(index, 'name', e.target.value)}
+                        onChange={(e) => onChange(index, { name: e.target.value })}
                     />
                     {errorAt('name') && <span className="field-error">{errorAt('name')}</span>}
                 </div>
@@ -256,7 +257,7 @@ export default function ScriptEditorFieldRow({ field, index, errors, onChange, o
                         type="text"
                         placeholder="Switch Name"
                         value={field.label}
-                        onChange={(e) => onChange(index, 'label', e.target.value)}
+                        onChange={(e) => onChange(index, { label: e.target.value })}
                     />
                     {errorAt('label') && <span className="field-error">{errorAt('label')}</span>}
                 </div>
@@ -280,7 +281,7 @@ export default function ScriptEditorFieldRow({ field, index, errors, onChange, o
                             type="checkbox"
                             className="toggle-input"
                             checked={!!field.required}
-                            onChange={(e) => onChange(index, 'required', e.target.checked)}
+                            onChange={(e) => onChange(index, { required: e.target.checked })}
                         />
                         <span className="toggle-slider" />
                         <span className="toggle-label">Required</span>

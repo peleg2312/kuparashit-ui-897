@@ -60,15 +60,19 @@ function buildPermissionTeams(permissionMap, fallbackTeams = []) {
         .map(([name]) => String(name));
 
     const knownTeamIds = new Set(Object.keys(teams));
-    const mappedTeams = permissionKeys
-        .map((name) => resolveTeamId(name))
-        .filter((teamId) => knownTeamIds.has(teamId));
+    const mappedTeams = [...new Set(
+        permissionKeys
+            .map((name) => resolveTeamId(name))
+            .filter((teamId) => knownTeamIds.has(teamId)),
+    )];
     if (mappedTeams.length) return mappedTeams;
 
     if (Array.isArray(fallbackTeams) && fallbackTeams.length) {
-        const filteredFallback = fallbackTeams
-            .map((team) => resolveTeamId(team))
-            .filter((team) => knownTeamIds.has(team));
+        const filteredFallback = [...new Set(
+            fallbackTeams
+                .map((team) => resolveTeamId(team))
+                .filter((team) => knownTeamIds.has(team)),
+        )];
         if (filteredFallback.length) return filteredFallback;
     }
 

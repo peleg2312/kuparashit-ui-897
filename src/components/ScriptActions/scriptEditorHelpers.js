@@ -115,7 +115,7 @@ function rehydrateItemType(it) {
     return base;
 }
 
-export function buildInitialState(script) {
+export function buildInitialState(script, { defaultTeams = [] } = {}) {
     if (!script) {
         return {
             label: '',
@@ -123,7 +123,7 @@ export function buildInitialState(script) {
             url: '',
             method: 'POST',
             backend: 'other',
-            teams: [],
+            teams: [...defaultTeams],
             fields: [blankField()],
         };
     }

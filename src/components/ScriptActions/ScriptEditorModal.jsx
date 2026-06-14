@@ -4,6 +4,7 @@ import ScriptEditorTopFields from './ScriptEditorTopFields';
 import ScriptEditorFieldRow from './ScriptEditorFieldRow';
 import ScriptEditorFooter from './ScriptEditorFooter';
 import ScriptEditorTeamPicker from './ScriptEditorTeamPicker';
+import { useTeam } from '@/contexts/TeamContext';
 import {
     blankField,
     buildInitialState,
@@ -14,26 +15,31 @@ import '@/components/ActionModal/ActionModal.css';
 
 export default function ScriptEditorModal({ script, onClose, onSave, onDelete }) {
     const mode = script ? 'edit' : 'create';
-    const [state, setState] = useState(() => buildInitialState(script));
+    const { currentTeam } = useTeam();
+    // New cubes default to the current team so they're scoped, not global.
+    // Editing an existing cube keeps whatever teams it already has.
+    const defaultTeams = !script && currentTeam?.id ? [currentTeam.id] : [];
+    const [state, setState] = useState(() => buildInitialState(script, { defaultTeams }));
     const [errors, setErrors] = useState({});
     const [submitError, setSubmitError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        setState(buildInitialState(script));
+        setState(buildInitialState(script, { defaultTeams }));
         setErrors({});
         setSubmitError('');
-    }, [script]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [script, currentTeam?.id]);
 
     const handleTopChange = (key, value) => {
         setState((prev) => ({ ...prev, [key]: value }));
         setErrors((prev) => ({ ...prev, [key]: undefined }));
     };
 
-    const handleFieldChange = (index, key, value) => {
+    const handleFieldChange = (index, patch) => {
         setState((prev) => {
             const next = [...prev.fields];
-            next[index] = { ...next[index], [key]: value };
+            next[index] = { ...next[index], ...patch };
             return { ...prev, fields: next };
         });
     };

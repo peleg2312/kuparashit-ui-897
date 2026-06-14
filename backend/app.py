@@ -31,6 +31,9 @@ ALLOWED_ORIGINS = {
 app.add_middleware(
     CORSMiddleware,
     allow_origins=sorted(ALLOWED_ORIGINS),
+    # Dev: accept any localhost/127.0.0.1 port so the UI works regardless of
+    # which port Vite picks (5173, 5174, ...). Works with credentials, unlike "*".
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
