@@ -168,7 +168,7 @@ function validateField(field, errorBucket) {
         if (subErrors.length > 0) fErr.subFields = subErrors;
     }
     if (field.type === 'array') {
-        const itemErr = field.itemType ? validateItemType(field.itemType) : { type: 'Required' };
+        const itemErr = validateItemType(field.itemType || blankItemType());
         if (Object.keys(itemErr).length > 0) fErr.itemType = itemErr;
     }
 
@@ -203,7 +203,7 @@ function validateItemType(itemType) {
         if (subErrors.length > 0) itErr.subFields = subErrors;
     }
     if (itemType.type === 'array') {
-        const inner = itemType.itemType ? validateItemType(itemType.itemType) : { type: 'Required' };
+        const inner = validateItemType(itemType.itemType || blankItemType());
         if (Object.keys(inner).length > 0) itErr.itemType = inner;
     }
     return itErr;

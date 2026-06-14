@@ -217,7 +217,9 @@ export default function ScriptEditorFieldRow({ field, index, errors, onChange, o
             min: '',
             max: '',
             fields: [],
-            itemType: null,
+            // Arrays need a concrete itemType (defaults to text) so the field is
+            // valid out of the box — otherwise validation flags "Required".
+            itemType: nextType === 'array' ? blankItemType() : null,
         });
     };
 

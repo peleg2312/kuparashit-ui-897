@@ -1,6 +1,5 @@
 import { HiExclamationCircle, HiPlus, HiTrash } from 'react-icons/hi';
 import ActionModalSelectField from '@/components/ActionModal/ActionModalSelectField';
-import TagInput from './TagInput';
 import { defaultValueForType } from './scriptEditorHelpers';
 
 /**
@@ -151,21 +150,7 @@ export default function ScriptFieldInput({
         const arrValue = Array.isArray(value) ? value : [];
         const itemType = field.itemType || { type: 'text' };
 
-        // Arrays of primitives → tag input (chip-style)
-        if (itemType.type === 'text' || itemType.type === 'number') {
-            return (
-                <FieldWrapper label={showLabel} required={field.required} error={typeof error === 'string' ? error : undefined}>
-                    <TagInput
-                        value={arrValue}
-                        itemType={itemType.type}
-                        onChange={onChange}
-                        placeholder={`Add ${(showLabel || 'item').toLowerCase()} and press Enter`}
-                    />
-                </FieldWrapper>
-            );
-        }
-
-        // Arrays of objects / arrays / dropdown-api → list of item rows with +/-
+        // All array types → list of item rows with an "Add item" button.
         const addItem = () => onChange([...arrValue, defaultValueForType(itemType)]);
         const removeAt = (idx) => onChange(arrValue.filter((_, i) => i !== idx));
         const updateAt = (idx, newVal) => {
