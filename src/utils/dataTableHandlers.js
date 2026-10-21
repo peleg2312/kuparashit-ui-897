@@ -28,10 +28,21 @@ export function getRowClusterKey(row) {
     return `${vc}::${cluster}`;
 }
 
-export function buildFilterOptions(columns, data) {
+function isActiveFilter(value) {
+    return value && value !== '__all__';
+}
+
+// Cascading: each column's options come from rows matching every OTHER active filter.
+export function buildFilterOptions(columns, data, filters = {}) {
     const options = {};
     columns.filter((column) => column.filterable).forEach((column) => {
-        options[column.key] = [...new Set(data.map((row) => row[column.key]).filter(Boolean))].sort();
+        const others = Object.entries(filters).filter(([key, value]) => key !== column.key && isActiveFilter(value));
+        const rows = others.length
+            ? data.filter((row) => others.every(([key, value]) => String(row[key]) === value))
+            : data;
+        const values = new Set(rows.map((row) => row[column.key]).filter(Boolean));
+        if (isActiveFilter(filters[column.key])) values.add(filters[column.key]);
+        options[column.key] = [...values].sort();
     });
     return options;
 }
@@ -47,7 +58,7 @@ export function applyTableTransforms({ data, search, columns, filters, sortBy, s
     }
 
     Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== '__all__') {
+        if (isActiveFilter(value)) {
             result = result.filter((row) => String(row[key]) === value);
         }
     });

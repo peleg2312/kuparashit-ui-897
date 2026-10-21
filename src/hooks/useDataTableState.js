@@ -12,8 +12,8 @@ export function useDataTableState({ columns, data, onSelectionChange }) {
     const [pageSize, setPageSize] = useState(14);
 
     const filterOptions = useMemo(
-        () => buildFilterOptions(columns, data),
-        [columns, data],
+        () => buildFilterOptions(columns, data, filters),
+        [columns, data, filters],
     );
 
     const filtered = useMemo(

@@ -85,6 +85,23 @@ export default function ActionModalSelectField({
         onChange(param.multi ? [] : '');
     };
 
+    const customTerm = searchTerm.trim();
+    const exactMatch = options.find((option) => option.label.toLowerCase() === searchQuery || option.value.toLowerCase() === searchQuery);
+    const canAddCustom = Boolean(customTerm) && !exactMatch;
+
+    const commitTyped = () => {
+        if (!customTerm) return;
+        const nextValue = exactMatch ? exactMatch.value : customTerm;
+        if (param.multi) {
+            onChange(uniqueValues([...selectedList, nextValue]));
+            onSearchChange('');
+            return;
+        }
+        onChange(nextValue);
+        onSearchChange('');
+        onOpenChange(false);
+    };
+
     const openMenu = () => {
         if (hasMissingDependency) return;
         onOpenChange(!isOpen);
@@ -128,7 +145,12 @@ export default function ActionModalSelectField({
                             className="am-select-search-input"
                             value={searchTerm}
                             onChange={(event) => onSearchChange(event.target.value)}
-                            placeholder={`Search ${param.label.toLowerCase()}...`}
+                            placeholder={`Search or type ${param.label.toLowerCase()}, Enter to select...`}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                commitTyped();
+                            }}
                             autoFocus
                         />
                     </div>
@@ -145,7 +167,13 @@ export default function ActionModalSelectField({
                     )}
 
                     <div className="am-select-options">
-                        {filteredOptions.length === 0 ? (
+                        {canAddCustom && (
+                            <button type="button" className="am-select-option" onClick={commitTyped}>
+                                <span className="am-select-option-check" />
+                                <span className="am-select-option-label">Use &quot;{customTerm}&quot;</span>
+                            </button>
+                        )}
+                        {filteredOptions.length === 0 && !canAddCustom ? (
                             <div className="am-select-empty">No matching items</div>
                         ) : (
                             filteredOptions.map((option) => {

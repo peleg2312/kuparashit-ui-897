@@ -16,6 +16,8 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+.claude*
+.claude-flow
 venv/
 # Editor directories and files
 .vscode/*
